@@ -24,11 +24,10 @@ class BatchProcessor:
         Return a JSON array, with each object containing these exact keys:
         - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
         - "summary": A concise summary of the candidate's background and experience
-        - "achievements": An array of 3-5 notable achievements from their career
-        - "skills": An array of key skills (5-8 items)
-        - "experience_level": Their experience level (e.g., "5+ years", "Senior level", etc.)
         - "reservations": An array of 2-3 potential concerns or gaps for this specific role
-        - "fit_reasoning": A brief explanation of why they might be a good fit for this role
+        - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
+        - "achievements": An array of 3-5 notable achievements from their career
+        - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years (can be 0)
 
         Job Description:
         {job_description if job_description else "Not provided."}
@@ -57,11 +56,10 @@ class BatchProcessor:
         Return a JSON object with these exact keys:
         - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
         - "summary": A concise summary of the candidate's background and experience
-        - "achievements": An array of 3-5 notable achievements from their career
-        - "skills": An array of key skills (5-8 items)
-        - "experience_level": Their experience level (e.g., "5+ years", "Senior level", etc.)
         - "reservations": An array of 2-3 potential concerns or gaps for this specific role
-        - "fit_reasoning": A brief explanation of why they might be a good fit for this role
+        - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
+        - "achievements": An array of 3-5 notable achievements from their career
+        - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years (can be 0)
 
         Job Description:
         {job_description if job_description else "Not provided."}
@@ -96,11 +94,10 @@ class BatchProcessor:
         return {
             "nickname": "Review Pending",
             "summary": response[:200] + "...",
-            "skills": ["Analysis pending"],
-            "experience_level": "To be determined",
-            "achievements": ["Manual review needed"],
             "reservations": ["Unable to analyze automatically"],
-            "fit_reasoning": "Automated analysis incomplete"
+            "fit_indicators": ["Automated analysis incomplete"],
+            "achievements": ["Manual review needed"],
+            "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
         }
     
     def _create_error_response(self) -> Dict:
@@ -108,11 +105,10 @@ class BatchProcessor:
         return {
             "nickname": "Error Processing",
             "summary": "Error processing resume",
-            "skills": ["Error"],
-            "experience_level": "Unknown",
-            "achievements": ["Error in processing"],
             "reservations": ["Processing error occurred"],
-            "fit_reasoning": "Processing error occurred"
+            "fit_indicators": ["Processing error occurred"],
+            "achievements": ["Error in processing"],
+            "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
         }
     
     def process_batch(self, resumes_data: List[Dict], customization_settings: Dict, batch_size: int = 3) -> Dict[str, Dict]:

@@ -117,11 +117,36 @@ function displayCard(candidate) {
     // Clone template
     const card = template.content.cloneNode(true);
     
+    // Calculate total experience from distribution
+    let totalYears = 0;
+    if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
+        totalYears = Object.values(candidate.experience_distribution).reduce((sum, years) => sum + (years || 0), 0);
+    }
+    
     // Fill in candidate data
     card.querySelector('.candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
-    card.querySelector('.experience-level').textContent = candidate.experience_level || 'Unknown';
+    card.querySelector('.experience-total').textContent = totalYears > 0 ? `${totalYears} years` : 'Experience TBD';
     card.querySelector('.summary-text').textContent = candidate.summary || 'No summary available';
-    card.querySelector('.fit-reasoning').textContent = candidate.fit_reasoning || 'No reasoning provided';
+    
+    // Add reservations (black bullet points)
+    const reservationsList = card.querySelector('.reservations-list');
+    if (Array.isArray(candidate.reservations)) {
+        candidate.reservations.forEach(reservation => {
+            const li = document.createElement('li');
+            li.textContent = reservation;
+            reservationsList.appendChild(li);
+        });
+    }
+    
+    // Add fit indicators
+    const fitIndicatorsList = card.querySelector('.fit-indicators-list');
+    if (Array.isArray(candidate.fit_indicators)) {
+        candidate.fit_indicators.forEach(indicator => {
+            const li = document.createElement('li');
+            li.textContent = indicator;
+            fitIndicatorsList.appendChild(li);
+        });
+    }
     
     // Add achievements
     const achievementsList = card.querySelector('.achievements-list');
@@ -133,25 +158,26 @@ function displayCard(candidate) {
         });
     }
     
-    // Add reservations
-    const reservationsList = card.querySelector('.reservations-list');
-    if (Array.isArray(candidate.reservations)) {
-        candidate.reservations.forEach(reservation => {
-            const li = document.createElement('li');
-            li.textContent = reservation;
-            reservationsList.appendChild(li);
+    // Add experience distribution
+    const experienceDistribution = card.querySelector('.experience-distribution');
+    if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
+        const sectors = ['corporate', 'startup', 'nonprofit', 'government', 'education', 'other'];
+        sectors.forEach(sector => {
+            const years = candidate.experience_distribution[sector] || 0;
+            if (years > 0) {
+                const item = document.createElement('div');
+                item.className = 'experience-item';
+                item.innerHTML = `
+                    <span class="experience-sector">${sector.charAt(0).toUpperCase() + sector.slice(1)}</span>
+                    <span class="experience-years">${years} year${years !== 1 ? 's' : ''}</span>
+                `;
+                experienceDistribution.appendChild(item);
+            }
         });
-    }
-    
-    // Add skills
-    const skillsContainer = card.querySelector('.skills-container');
-    if (Array.isArray(candidate.skills)) {
-        candidate.skills.forEach(skill => {
-            const skillTag = document.createElement('div');
-            skillTag.className = 'skill-tag';
-            skillTag.textContent = skill;
-            skillsContainer.appendChild(skillTag);
-        });
+        
+        if (experienceDistribution.children.length === 0) {
+            experienceDistribution.innerHTML = '<p class="no-experience">Experience distribution unavailable</p>';
+        }
     }
     
     // Add to container
@@ -310,8 +336,14 @@ function displaySavedCandidates(saved) {
         const template = document.getElementById('saved-card-template');
         const card = template.content.cloneNode(true);
         
+        // Calculate total experience from distribution
+        let totalYears = 0;
+        if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
+            totalYears = Object.values(candidate.experience_distribution).reduce((sum, years) => sum + (years || 0), 0);
+        }
+        
         card.querySelector('.saved-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
-        card.querySelector('.saved-experience').textContent = candidate.experience_level || '';
+        card.querySelector('.saved-experience').textContent = totalYears > 0 ? `${totalYears} years experience` : 'Experience TBD';
         
         // Store candidate data for viewing
         const viewBtn = card.querySelector('.view-btn');

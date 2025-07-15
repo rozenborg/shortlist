@@ -529,16 +529,74 @@ body {
     position: relative;
     padding-left: 20px;
     margin-bottom: 8px;
-    color: #d73502;
+    color: #333;
     line-height: 1.5;
 }
 
 .reservations-list li:before {
-    content: "⚠";
+    content: "•";
     position: absolute;
     left: 0;
-    color: #d73502;
-    font-weight: normal;
+    color: #333;
+    font-weight: bold;
+}
+
+/* Fit Indicators */
+.fit-indicators-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.fit-indicators-list li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 8px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.fit-indicators-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Experience Distribution */
+.experience-distribution {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.experience-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+}
+
+.experience-sector {
+    font-weight: 500;
+    color: #333;
+    text-transform: capitalize;
+}
+
+.experience-years {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.no-experience {
+    color: #999;
+    font-style: italic;
+    margin: 0;
+    text-align: center;
+    padding: 15px;
 }
 
 /* Action Buttons */
