@@ -6,4 +6,5 @@ PyPDF2
 python-docx
 asyncio
 aiofiles
-concurrent.futures 
+concurrent.futures
+openpyxl 

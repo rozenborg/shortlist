@@ -21,7 +21,7 @@ async function checkJobDescription() {
         const response = await fetch('/api/job-description');
         const data = await response.json();
         
-        if (data.has_job_description) {
+        if (data.has_job_description && !window.showJobDescriptionScreen) {
             // Show main content and load candidates
             document.getElementById('job-description-screen').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
@@ -31,7 +31,26 @@ async function checkJobDescription() {
             // Show job description input screen
             document.getElementById('job-description-screen').style.display = 'flex';
             document.getElementById('main-content').style.display = 'none';
+            
+            // Populate with existing job description if available
+            if (data.job_description) {
+                document.getElementById('job-description-input').value = data.job_description;
+                // Update button text to indicate this is an edit/restart
+                const buttonText = document.querySelector('.start-btn .btn-text');
+                if (buttonText) {
+                    buttonText.textContent = 'Continue with Updated Job Description';
+                }
+            } else {
+                // Reset button text for first time setup
+                const buttonText = document.querySelector('.start-btn .btn-text');
+                if (buttonText) {
+                    buttonText.textContent = 'Start Reviewing Candidates';
+                }
+            }
         }
+        
+        // Reset the flag
+        window.showJobDescriptionScreen = false;
     } catch (error) {
         console.error('Error checking job description:', error);
     }
@@ -47,6 +66,9 @@ async function submitJobDescription() {
     }
     
     const button = document.querySelector('.start-btn');
+    const buttonText = document.querySelector('.start-btn .btn-text');
+    const isRestart = buttonText.textContent.includes('Continue');
+    
     button.classList.add('loading');
     button.disabled = true;
     
@@ -58,13 +80,30 @@ async function submitJobDescription() {
         });
         
         if (response.ok) {
+            // Reset processing tracking state
+            window.wasProcessing = false;
+            window.hasShownCompleted = false;
+            
             // Hide job description screen and show main content
             document.getElementById('job-description-screen').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
             
+            // Reset button text for next time
+            buttonText.textContent = 'Start Reviewing Candidates';
+            
+            // Show notification if this was a restart/update
+            if (isRestart) {
+                showNotification('Job description updated! Re-analyzing all candidates with the new criteria...', 'info');
+            }
+            
             // Start loading candidates
             loadCandidates();
             loadSavedCandidates();
+            
+            // Force an immediate status update to show processing has started
+            setTimeout(() => {
+                updateProcessingStatus();
+            }, 100);
         } else {
             const error = await response.json();
             alert(error.error || 'Failed to save job description');
@@ -84,6 +123,12 @@ async function loadCandidates() {
         const response = await fetch('/api/candidates');
         candidates = await response.json();
         currentIndex = 0; // Reset index on load
+        
+        // Check if any candidates are still processing
+        const processingCount = candidates.filter(c => c.processing === true).length;
+        if (processingCount > 0) {
+            showNotification(`${processingCount} candidates are still being analyzed. They'll update automatically when ready.`, 'info');
+        }
         
         if (candidates.length > 0) {
             displayCard(candidates[currentIndex]);
@@ -369,7 +414,7 @@ function displaySavedCandidates(saved) {
         return;
     }
     
-    saved.forEach(candidate => {
+    saved.forEach((candidate, index) => {
         const template = document.getElementById('saved-card-template');
         const card = template.content.cloneNode(true);
         
@@ -380,12 +425,152 @@ function displaySavedCandidates(saved) {
         
         card.querySelector('.saved-experience').textContent = '';
         
-        // Store candidate data for viewing
+        // Store candidate data for viewing and dragging
         const viewBtn = card.querySelector('.view-btn');
         viewBtn.dataset.candidateId = candidate.id;
         
+        const cardElement = card.querySelector('.saved-card');
+        cardElement.dataset.candidateId = candidate.id;
+        cardElement.dataset.index = index;
+        
+        // Add drag event listeners
+        setupDragListeners(cardElement);
+        
         container.appendChild(card);
     });
+    
+    // Setup container-level drag events for better drop zone handling
+    setupContainerDragEvents();
+}
+
+// Setup drag and drop listeners for a card
+function setupDragListeners(cardElement) {
+    cardElement.addEventListener('dragstart', handleDragStart);
+    cardElement.addEventListener('dragend', handleDragEnd);
+}
+
+// Setup container-level drag events for better drop handling
+function setupContainerDragEvents() {
+    const container = document.getElementById('saved-candidates');
+    
+    // Remove existing listeners to avoid duplicates
+    container.removeEventListener('dragover', handleContainerDragOver);
+    container.removeEventListener('drop', handleContainerDrop);
+    
+    // Add container-level listeners
+    container.addEventListener('dragover', handleContainerDragOver);
+    container.addEventListener('drop', handleContainerDrop);
+}
+
+function handleContainerDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Find the closest drop zone
+    const afterElement = getDragAfterElement(this, e.clientY);
+    let dropIndicator = document.querySelector('.drop-indicator');
+    
+    // Create drop indicator if it doesn't exist
+    if (!dropIndicator) {
+        dropIndicator = document.createElement('div');
+        dropIndicator.className = 'drop-indicator';
+        dropIndicator.innerHTML = '<div class="drop-line"></div>';
+    }
+    
+    if (afterElement == null) {
+        this.appendChild(dropIndicator);
+    } else {
+        this.insertBefore(dropIndicator, afterElement);
+    }
+    
+    return false;
+}
+
+function handleContainerDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    const dropIndicator = document.querySelector('.drop-indicator');
+    
+    if (dropIndicator && draggedElement) {
+        // Insert the dragged element where the drop indicator is
+        this.insertBefore(draggedElement, dropIndicator);
+        dropIndicator.remove();
+        
+        // Update the order on the server
+        updateCandidateOrder();
+    }
+    
+    return false;
+}
+
+// Drag and drop handlers
+let draggedElement = null;
+let dragCounter = 0;
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragEnd(e) {
+    // Clean up
+    const allCards = document.querySelectorAll('.saved-card');
+    allCards.forEach(card => {
+        card.classList.remove('dragging', 'drag-over');
+    });
+    
+    // Remove drop indicator if it exists
+    const dropIndicator = document.querySelector('.drop-indicator');
+    if (dropIndicator) {
+        dropIndicator.remove();
+    }
+    
+    draggedElement = null;
+    dragCounter = 0;
+}
+
+// Get the element that should come after the dragged element
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.saved-card:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// Update candidate order on server
+async function updateCandidateOrder() {
+    const container = document.getElementById('saved-candidates');
+    const cards = Array.from(container.querySelectorAll('.saved-card'));
+    const orderedIds = cards.map(card => card.dataset.candidateId);
+    
+    try {
+        await fetch('/api/saved/reorder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ordered_ids: orderedIds
+            })
+        });
+    } catch (error) {
+        console.error('Error updating candidate order:', error);
+        showNotification('Error saving new order. Please refresh the page.', 'error');
+    }
 }
 
 // View candidate details
@@ -524,7 +709,7 @@ async function undoLastSwipe() {
 
 // Confirm and restart session
 function confirmRestart() {
-    if (confirm('Are you sure you want to restart? This will clear all saved and passed candidates.')) {
+    if (confirm('Are you sure you want to restart? This will clear all saved and passed candidates and return you to the job description screen.')) {
         restartSession();
     }
 }
@@ -532,7 +717,30 @@ function confirmRestart() {
 async function restartSession() {
     try {
         await fetch('/api/restart', { method: 'POST' });
-        window.location.reload(); // Easiest way to reset the UI
+        
+        // Reset processing tracking state
+        window.wasProcessing = false;
+        window.hasShownCompleted = false;
+        
+        // Set flag to show job description screen
+        window.showJobDescriptionScreen = true;
+        
+        // Reset UI state
+        currentIndex = 0;
+        candidates = [];
+        stats = {
+            reviewed: 0,
+            saved: 0,
+            starred: 0,
+            passed: 0
+        };
+        updateStats();
+        
+        // Clear saved candidates display
+        document.getElementById('saved-candidates').innerHTML = '<div class="empty-message">No saved candidates yet.</div>';
+        
+        // Show job description screen
+        checkJobDescription();
     } catch (error) {
         console.error('Error restarting session:', error);
         alert('An error occurred while restarting the session.');
@@ -563,9 +771,57 @@ async function updateProcessingStatus() {
         const response = await fetch('/api/process/status');
         const status = await response.json();
         
-        document.getElementById('processing-status').textContent = status.status;
-        document.getElementById('processing-progress').textContent = Math.round(status.progress) + '%';
-        document.getElementById('progress-fill').style.width = status.progress + '%';
+        // Update status text
+        const statusElement = document.getElementById('processing-status');
+        const progressElement = document.getElementById('processing-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+        
+        if (status.is_processing) {
+            // Reset completion tracking when new processing starts
+            window.hasShownCompleted = false;
+            
+            statusElement.textContent = 'Processing...';
+            progressElement.textContent = `${status.processed_count}/${status.total_count} candidates (${Math.round(status.progress)}%)`;
+            progressBar.style.display = 'block';
+            progressFill.style.width = status.progress + '%';
+        } else {
+            if (status.status === 'completed' && !window.hasShownCompleted) {
+                // Only show "Completed" once per processing cycle
+                window.hasShownCompleted = true;
+                statusElement.textContent = 'Completed';
+                progressElement.textContent = 'All candidates analyzed';
+                
+                // After 3 seconds, change back to Idle
+                setTimeout(() => {
+                    statusElement.textContent = 'Idle';
+                    progressElement.textContent = '';
+                }, 3000);
+            } else if (status.status === 'error') {
+                statusElement.textContent = 'Error';
+                progressElement.textContent = 'Processing failed';
+            } else if (status.status === 'idle' || !window.hasShownCompleted) {
+                // Only set to Idle if we haven't already shown completed, or if server says idle
+                if (statusElement.textContent !== 'Completed') {
+                    statusElement.textContent = 'Idle';
+                    progressElement.textContent = '';
+                }
+            }
+            progressBar.style.display = 'none';
+            progressFill.style.width = '0%';
+        }
+        
+        // Track if we were previously processing
+        if (!window.wasProcessing) {
+            window.wasProcessing = status.is_processing;
+        }
+        
+        // If processing just completed
+        if (!status.is_processing && window.wasProcessing) {
+            window.wasProcessing = false;
+            showNotification('All candidates have been analyzed with the updated job description!', 'success');
+            loadCandidates();
+        }
         
         // If processing is complete and we have unprocessed candidates, refresh
         if (status.status === 'completed' && hasUnprocessedCandidates()) {
@@ -613,4 +869,80 @@ async function forceProcessNextBatch() {
     } catch (error) {
         console.error('Error force processing batch:', error);
     }
+}
+
+// Export candidates to Excel
+async function exportCandidates() {
+    const exportBtn = document.querySelector('.export-btn');
+    
+    // Check if there are any saved candidates first
+    try {
+        const response = await fetch('/api/saved');
+        const savedCandidates = await response.json();
+        
+        if (savedCandidates.length === 0) {
+            alert('No candidates to export. Save some candidates first!');
+            return;
+        }
+        
+        // Disable button and show loading state
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<span class="btn-icon">⏳</span> Exporting...';
+        
+        // Call export API
+        const exportResponse = await fetch('/api/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (exportResponse.ok) {
+            // Get the blob and download it
+            const blob = await exportResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'shortlisted_candidates.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } else {
+            const error = await exportResponse.json();
+            alert(error.error || 'Failed to export candidates');
+        }
+        
+    } catch (error) {
+        console.error('Error exporting candidates:', error);
+        alert('Error exporting candidates. Please try again.');
+    } finally {
+        // Reset button state
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = '<span class="btn-icon">📊</span> Export to Excel';
+    }
 } 
+
+// Show notification toast
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 5000);
+}

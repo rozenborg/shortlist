@@ -21,7 +21,11 @@ class CandidateService:
             with open(self.decisions_file, 'r') as f:
                 self.decisions = json.load(f)
         else:
-            self.decisions = {'saved': [], 'passed': [], 'starred': []}
+            self.decisions = {'saved': [], 'passed': [], 'starred': [], 'custom_order': []}
+        
+        # Ensure custom_order exists
+        if 'custom_order' not in self.decisions:
+            self.decisions['custom_order'] = []
         
         # Load summaries cache
         if os.path.exists(self.summaries_cache):
@@ -59,7 +63,7 @@ class CandidateService:
         - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
         - "achievements": An array of 3-5 notable achievements from their career
         - "wildcard": A unique, interesting aspect about this candidate that stands out and likely wouldn't appear in many other resumes (e.g., unusual hobby, unique background, interesting side project, uncommon skill combination)
-        - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years (can be 0)
+        - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years. For this section, look through all the experience and carefully add up the years in each (can be 0)
 
         Job Description:
         {job_description if job_description else "Not provided."}
@@ -238,7 +242,7 @@ class CandidateService:
 
     def restart_session(self):
         """Clear all decisions and start over"""
-        self.decisions = {'saved': [], 'passed': [], 'starred': []}
+        self.decisions = {'saved': [], 'passed': [], 'starred': [], 'custom_order': []}
         self.swipe_history = []
         self._save_data()
         return {'success': True}
@@ -264,6 +268,42 @@ class CandidateService:
                     candidate['is_starred'] = True
                     saved_candidates.append(candidate)
         
-        # Sort by timestamp (most recent first)
-        saved_candidates.sort(key=lambda x: x['saved_at'], reverse=True)
-        return saved_candidates 
+        # Apply custom ordering if it exists
+        custom_order = self.decisions.get('custom_order', [])
+        if custom_order:
+            # Create a mapping of candidate_id to candidate
+            candidate_map = {c['id']: c for c in saved_candidates}
+            ordered_candidates = []
+            
+            # Add candidates in custom order
+            for candidate_id in custom_order:
+                if candidate_id in candidate_map:
+                    ordered_candidates.append(candidate_map[candidate_id])
+                    del candidate_map[candidate_id]
+            
+            # Add any remaining candidates that aren't in the custom order (new saves)
+            remaining_candidates = list(candidate_map.values())
+            remaining_candidates.sort(key=lambda x: x['saved_at'], reverse=True)
+            ordered_candidates.extend(remaining_candidates)
+            
+            return ordered_candidates
+        else:
+            # Default: Sort by timestamp (most recent first)
+            saved_candidates.sort(key=lambda x: x['saved_at'], reverse=True)
+            return saved_candidates
+    
+    def update_candidate_order(self, ordered_ids):
+        """Update the custom order of saved candidates"""
+        # Validate that all IDs are actually saved/starred candidates
+        saved_ids = set()
+        for saved in self.decisions['saved']:
+            saved_ids.add(saved['id'])
+        for starred in self.decisions.get('starred', []):
+            saved_ids.add(starred['id'])
+        
+        # Filter to only include valid saved candidate IDs
+        valid_ordered_ids = [cid for cid in ordered_ids if cid in saved_ids]
+        
+        self.decisions['custom_order'] = valid_ordered_ids
+        self._save_data()
+        return {'success': True, 'order_updated': len(valid_ordered_ids)} 

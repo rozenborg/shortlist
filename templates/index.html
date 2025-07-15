@@ -11,9 +11,13 @@
     <div class="app-container">
         <!-- Header -->
         <header class="header">
-            <h1 class="app-title">Swipe</h1>
-            <p class="app-subtitle">Application Review System</p>
-            <div class="header-actions">
+            <div class="header-left">
+                <h1 class="app-title">Swipe</h1>
+            </div>
+            <div class="header-center">
+                <p class="app-subtitle">Applicant Review Accelerator</p>
+            </div>
+            <div class="header-right">
                 <button class="header-btn" onclick="undoLastSwipe()">
                     <span class="btn-icon">↩️</span> Undo
                 </button>
@@ -26,8 +30,8 @@
         <!-- Job Description Input Screen -->
         <div id="job-description-screen" class="job-description-screen" style="display:none;">
             <div class="job-description-container">
-                <h2>Let's get started!</h2>
-                <p>Paste the job description below to begin reviewing candidates.</p>
+                <h2>Job Description Setup</h2>
+                <p>Enter or update the job description below to customize candidate analysis for your specific role.</p>
                 <textarea 
                     id="job-description-input" 
                     rows="15" 
@@ -93,12 +97,12 @@
                     <h3>Processing Status</h3>
                     <div class="status-content">
                         <div id="processing-indicator" class="processing-indicator">
-                            <span class="status-text">Idle</span>
+                            <span id="processing-status" class="status-text">Idle</span>
                         </div>
-                        <div class="progress-bar" style="display:none;">
-                            <div class="progress-fill" style="width: 0%;"></div>
+                        <div class="progress-bar" id="progress-bar">
+                            <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
                         </div>
-                        <p class="progress-text"></p>
+                        <p id="processing-progress" class="progress-text"></p>
                     </div>
                 </div>
             </div>
@@ -134,6 +138,11 @@
                 <h3>Saved Candidates</h3>
                 <div id="saved-candidates" class="saved-candidates">
                     <!-- Saved candidates will be displayed here -->
+                </div>
+                <div class="export-section">
+                    <button class="export-btn" onclick="exportCandidates()">
+                        <span class="btn-icon">📊</span> Export to Excel
+                    </button>
                 </div>
             </div>
         </div>
@@ -223,10 +232,13 @@
 
     <!-- Saved Card Template -->
     <template id="saved-card-template">
-        <div class="saved-card">
-            <h4 class="saved-name"></h4>
-            <div class="saved-experience"></div>
-            <button class="view-btn" onclick="viewCandidate(this)">View Details</button>
+        <div class="saved-card" draggable="true">
+            <div class="drag-handle">⋮⋮</div>
+            <div class="saved-card-content">
+                <h4 class="saved-name"></h4>
+                <div class="saved-experience"></div>
+                <button class="view-btn" onclick="viewCandidate(this)">View Details</button>
+            </div>
         </div>
     </template>
 

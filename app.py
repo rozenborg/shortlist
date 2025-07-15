@@ -1,10 +1,13 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file
 from flask_cors import CORS
 import os
 import json
+import io
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
 from src.factory import get_llm_client
 from src.manager import LLMService
 from src.resume_parser import ResumeParser
@@ -57,6 +60,18 @@ def get_saved_candidates():
     saved = candidate_service.get_saved_candidates()
     return jsonify(saved)
 
+@app.route('/api/saved/reorder', methods=['POST'])
+def reorder_saved_candidates():
+    """Update the custom order of saved candidates"""
+    data = request.json
+    ordered_ids = data.get('ordered_ids', [])
+    
+    if not ordered_ids:
+        return jsonify({'error': 'No ordered_ids provided'}), 400
+    
+    result = candidate_service.update_candidate_order(ordered_ids)
+    return jsonify(result)
+
 @app.route('/api/process/start', methods=['POST'])
 def start_background_processing():
     """Start background processing of all resumes"""
@@ -100,6 +115,10 @@ def job_description():
         if os.path.exists(candidate_service.summaries_cache):
             os.remove(candidate_service.summaries_cache)
             
+        # Clear in-memory summaries cache
+        candidate_service.summaries = {}
+        candidate_service._load_data()  # Reload empty data from disk
+            
         # Start processing resumes with the new job description
         background_processor.start_background_processing()
         
@@ -126,6 +145,129 @@ def restart_session():
     # Don't clear the job description, just the decisions
     background_processor.start_background_processing()
     return jsonify(result)
+
+@app.route('/api/export', methods=['POST'])
+def export_candidates():
+    """Export saved candidates to Excel file"""
+    try:
+        # Get saved candidates
+        saved_candidates = candidate_service.get_saved_candidates()
+        
+        if not saved_candidates:
+            return jsonify({'error': 'No candidates to export'}), 400
+        
+        # Create workbook and worksheet
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Shortlisted Candidates"
+        
+        # Define headers
+        headers = [
+            'First Name', 'Last Name', 'Resume Filename', 'Nickname', 
+            'Summary', 'Reservations', 'Fit Indicators', 'Achievements', 
+            'Experience Distribution', 'Starred?'
+        ]
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Write candidate data
+        for row, candidate in enumerate(saved_candidates, 2):
+            # Parse name from filename
+            filename = candidate.get('filename', '')
+            first_name, last_name = parse_name_from_filename(filename)
+            
+            # Format arrays as comma-separated strings
+            reservations = ', '.join(candidate.get('reservations', []))
+            fit_indicators = ', '.join(candidate.get('fit_indicators', []))
+            achievements = ', '.join(candidate.get('achievements', []))
+            
+            # Format experience distribution
+            exp_dist = candidate.get('experience_distribution', {})
+            exp_text = ', '.join([f"{sector.title()}: {years}y" 
+                                for sector, years in exp_dist.items() if years > 0])
+            
+            # Starred status
+            starred = 'TRUE' if candidate.get('is_starred', False) else ''
+            
+            # Write row data
+            row_data = [
+                first_name,
+                last_name,
+                filename,
+                candidate.get('nickname', candidate.get('name', '')),
+                candidate.get('summary', ''),
+                reservations,
+                fit_indicators,
+                achievements,
+                exp_text,
+                starred
+            ]
+            
+            for col, value in enumerate(row_data, 1):
+                ws.cell(row=row, column=col, value=value)
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to BytesIO
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name='shortlisted_candidates.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Error exporting candidates: {e}")
+        return jsonify({'error': 'Failed to export candidates'}), 500
+
+def parse_name_from_filename(filename):
+    """Parse first and last name from resume filename"""
+    if not filename:
+        return 'Unknown', 'Name'
+    
+    # Remove file extension
+    name_part = os.path.splitext(filename)[0]
+    
+    # Remove common patterns like "RESUME", numbers, etc.
+    import re
+    # Remove patterns like "12345abc", "RESUME", etc.
+    name_part = re.sub(r'\s+\w*\d+\w*\s*RESUME.*$', '', name_part, flags=re.IGNORECASE)
+    name_part = re.sub(r'\s+RESUME.*$', '', name_part, flags=re.IGNORECASE)
+    
+    # Split by spaces
+    parts = name_part.strip().split()
+    
+    if len(parts) >= 2:
+        first_name = parts[0]
+        last_name = ' '.join(parts[1:])  # Handle middle names
+    elif len(parts) == 1:
+        first_name = parts[0]
+        last_name = ''
+    else:
+        first_name = 'Unknown'
+        last_name = 'Name'
+    
+    return first_name, last_name
 
 if __name__ == '__main__':
     # Create necessary directories

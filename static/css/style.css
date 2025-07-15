@@ -7,7 +7,7 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #ffffff;
     min-height: 100vh;
     color: #333;
     overflow: hidden;
@@ -24,30 +24,42 @@ body {
 .header {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    padding: 20px;
-    text-align: center;
+    padding: 6px 20px;
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 50px;
 }
 
-.header-actions {
-    position: absolute;
-    top: 50%;
-    right: 20px;
-    transform: translateY(-50%);
+.header-left {
+    flex: 1;
     display: flex;
-    gap: 15px;
+    justify-content: flex-start;
+}
+
+.header-center {
+    flex: 1;
+    text-align: center;
+}
+
+.header-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
 .header-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
+    gap: 6px;
+    padding: 8px 16px;
     background: #e9ecef;
     border: none;
     border-radius: 50px;
-    font-size: 1em;
+    font-size: 0.9em;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -170,15 +182,17 @@ body {
 }
 
 .app-title {
-    font-size: 2.5em;
+    font-size: 1.8em;
     font-weight: 700;
     color: #5856d6;
-    margin-bottom: 5px;
+    margin: 0;
 }
 
 .app-subtitle {
-    font-size: 1.1em;
+    font-size: 1em;
     color: #666;
+    margin: 0;
+    font-weight: 500;
 }
 
 /* Job Description Screen */
@@ -290,7 +304,7 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 25px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08), 0 3px 10px rgba(0, 0, 0, 0.05);
     overflow-y: auto;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
@@ -428,7 +442,7 @@ body {
     height: 100%;
     background: white;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1), 0 4px 15px rgba(0, 0, 0, 0.08);
     padding: 0;
     cursor: grab;
     transition: transform 0.2s ease-out, opacity 0.2s ease-out;
@@ -634,36 +648,36 @@ body {
 }
 
 .pass-btn {
-    background: #ff4458;
-    color: white;
+    background: #ffb3ba;
+    color: #333;
 }
 
 .pass-btn:hover {
-    background: #e63946;
+    background: #ff9aa1;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(255, 68, 88, 0.3);
+    box-shadow: 0 8px 20px rgba(255, 179, 186, 0.4);
 }
 
 .star-btn {
-    background: #ffd700;
+    background: #fff2b3;
     color: #333;
 }
 
 .star-btn:hover {
-    background: #ffed4e;
+    background: #ffec99;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+    box-shadow: 0 8px 20px rgba(255, 242, 179, 0.4);
 }
 
 .save-btn {
-    background: #42c767;
-    color: white;
+    background: #b3ffb3;
+    color: #333;
 }
 
 .save-btn:hover {
-    background: #38a855;
+    background: #99ff99;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(66, 199, 103, 0.3);
+    box-shadow: 0 8px 20px rgba(179, 255, 179, 0.4);
 }
 
 .btn-icon {
@@ -674,7 +688,13 @@ body {
 .saved-deck {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 24px;
+    padding: 8px 0;
+}
+
+.saved-candidates {
+    min-height: 100px;
+    padding: 10px 0;
 }
 
 .empty-message {
@@ -689,12 +709,76 @@ body {
     border-radius: 12px;
     border: 2px solid transparent;
     transition: all 0.3s ease;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: grab;
+}
+
+.saved-card:last-child {
+    margin-bottom: 0;
 }
 
 .saved-card:hover {
     border-color: #667eea;
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+.saved-card.dragging {
+    opacity: 0.8;
+    cursor: grabbing;
+    transform: rotate(3deg) scale(1.02);
+    z-index: 1000;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    border: 2px solid #667eea;
+}
+
+
+
+.drag-handle {
+    color: #999;
+    font-size: 14px;
+    cursor: grab;
+    user-select: none;
+    padding: 5px 0;
+    transition: color 0.2s ease;
+}
+
+.drag-handle:hover {
+    color: #667eea;
+}
+
+.saved-card-content {
+    flex: 1;
+}
+
+/* Drop indicator for drag and drop */
+.drop-indicator {
+    height: 4px;
+    margin: 10px 0;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.drop-line {
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    animation: dropPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes dropPulse {
+    from {
+        opacity: 0.6;
+        transform: scaleY(1);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1.2);
+    }
 }
 
 .saved-name {
@@ -724,6 +808,43 @@ body {
 
 .view-btn:hover {
     background: #5a67d8;
+}
+
+/* Export Section */
+.export-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.export-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.export-btn:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3);
+}
+
+.export-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 /* No More Cards */
@@ -919,4 +1040,41 @@ body {
 .modal-experience-years {
     font-weight: 600;
     color: #667eea;
+} 
+
+/* Notification Toast */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    z-index: 9999;
+    max-width: 400px;
+    font-weight: 500;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification-info {
+    background: #667eea;
+}
+
+.notification-success {
+    background: #10b981;
+}
+
+.notification-error {
+    background: #ef4444;
+}
+
+.notification-warning {
+    background: #f59e0b;
 } 
