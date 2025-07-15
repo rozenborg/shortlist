@@ -4,6 +4,7 @@ let currentIndex = 0;
 let stats = {
     reviewed: 0,
     saved: 0,
+    starred: 0,
     passed: 0
 };
 
@@ -176,6 +177,13 @@ function displayCard(candidate) {
     // Add to container
     container.appendChild(card);
     
+    // Show action buttons when displaying cards
+    const actionButtons = document.querySelector('.action-buttons');
+    if (actionButtons) {
+        actionButtons.style.display = 'flex';
+    }
+    document.getElementById('no-more-cards').style.display = 'none';
+    
     // Setup drag functionality
     setupDragFunctionality();
 }
@@ -244,13 +252,22 @@ async function performSwipe(direction) {
     const card = document.querySelector('.candidate-card');
     const candidate = candidates[currentIndex];
     
-    // Animate card out
-    card.classList.add(direction === 'right' ? 'swiping-right' : 'swiping-left');
+    // Animate card out based on direction
+    if (direction === 'left') {
+        card.classList.add('swiping-left');
+    } else if (direction === 'right') {
+        card.classList.add('swiping-right');
+    } else if (direction === 'star') {
+        // Add a special animation for starring
+        card.classList.add('swiping-star');
+    }
     
     // Update stats
     stats.reviewed++;
     if (direction === 'right') {
         stats.saved++;
+    } else if (direction === 'star') {
+        stats.starred++;
     } else {
         stats.passed++;
     }
@@ -258,6 +275,15 @@ async function performSwipe(direction) {
     
     // Send decision to server
     try {
+        let decision;
+        if (direction === 'right') {
+            decision = 'save';
+        } else if (direction === 'star') {
+            decision = 'star';
+        } else {
+            decision = 'pass';
+        }
+        
         await fetch('/api/swipe', {
             method: 'POST',
             headers: {
@@ -265,12 +291,12 @@ async function performSwipe(direction) {
             },
             body: JSON.stringify({
                 candidate_id: candidate.id,
-                decision: direction === 'right' ? 'save' : 'pass'
+                decision: decision
             })
         });
         
-        // Reload saved candidates if saved
-        if (direction === 'right') {
+        // Reload saved candidates if saved or starred
+        if (direction === 'right' || direction === 'star') {
             loadSavedCandidates();
         }
     } catch (error) {
@@ -297,6 +323,10 @@ function swipeRight() {
     performSwipe('right');
 }
 
+function swipeStar() {
+    performSwipe('star');
+}
+
 // Keyboard controls
 function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
@@ -312,6 +342,7 @@ function setupKeyboardControls() {
 function updateStats() {
     document.getElementById('reviewed-count').textContent = stats.reviewed;
     document.getElementById('saved-count').textContent = stats.saved;
+    document.getElementById('starred-count').textContent = stats.starred;
     document.getElementById('passed-count').textContent = stats.passed;
 }
 
@@ -329,7 +360,11 @@ function displaySavedCandidates(saved) {
         const template = document.getElementById('saved-card-template');
         const card = template.content.cloneNode(true);
         
-        card.querySelector('.saved-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
+        // Add star if candidate is starred
+        const nameElement = card.querySelector('.saved-name');
+        const candidateName = candidate.name || candidate.nickname || 'Anonymous';
+        nameElement.textContent = candidate.is_starred ? `⭐ ${candidateName}` : candidateName;
+        
         card.querySelector('.saved-experience').textContent = '';
         
         // Store candidate data for viewing
@@ -352,6 +387,12 @@ function showNoMoreCards() {
     const container = document.getElementById('card-container');
     container.innerHTML = '';
     document.getElementById('no-more-cards').style.display = 'block';
+    
+    // Hide action buttons when no more cards
+    const actionButtons = document.querySelector('.action-buttons');
+    if (actionButtons) {
+        actionButtons.style.display = 'none';
+    }
 }
 
 // Undo last swipe

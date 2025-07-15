@@ -443,6 +443,12 @@ body {
     opacity: 0;
 }
 
+.candidate-card.swiping-star {
+    transform: translateY(-50px) scale(1.1);
+    opacity: 0;
+    transition: all 0.3s ease-out;
+}
+
 /* Card Header */
 .card-header {
     display: flex;
@@ -619,6 +625,17 @@ body {
     background: #e63946;
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(255, 68, 88, 0.3);
+}
+
+.star-btn {
+    background: #ffd700;
+    color: #333;
+}
+
+.star-btn:hover {
+    background: #ffed4e;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
 }
 
 .save-btn {

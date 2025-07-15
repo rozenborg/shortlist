@@ -56,8 +56,16 @@
                         <span>Swipe Right to Save</span>
                     </div>
                     <div class="instruction-item">
+                        <span class="icon">⭐</span>
+                        <span>Click Star for favorites</span>
+                    </div>
+                    <div class="instruction-item">
                         <span class="icon">⌨️</span>
-                        <span>Or use arrow keys</span>
+                        <span>Use arrow keys</span>
+                    </div>
+                    <div class="instruction-item">
+                        <span class="icon">🔘</span>
+                        <span>Or click buttons below</span>
                     </div>
                 </div>
                 
@@ -70,6 +78,10 @@
                     <div class="stat-item">
                         <span class="stat-label">Saved:</span>
                         <span class="stat-value" id="saved-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Starred:</span>
+                        <span class="stat-value" id="starred-count">0</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Passed:</span>
@@ -95,6 +107,19 @@
             <div class="center-panel">
                 <div id="card-container" class="card-container">
                     <!-- Cards will be dynamically inserted here -->
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="action-btn pass-btn" onclick="swipeLeft()">
+                        <span class="btn-icon">❌</span> Pass
+                    </button>
+                    <button class="action-btn star-btn" onclick="swipeStar()">
+                        <span class="btn-icon">⭐</span> Star
+                    </button>
+                    <button class="action-btn save-btn" onclick="swipeRight()">
+                        <span class="btn-icon">✅</span> Save
+                    </button>
                 </div>
                 
                 <div id="no-more-cards" class="no-more-cards" style="display:none;">

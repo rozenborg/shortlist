@@ -21,7 +21,7 @@ class CandidateService:
             with open(self.decisions_file, 'r') as f:
                 self.decisions = json.load(f)
         else:
-            self.decisions = {'saved': [], 'passed': []}
+            self.decisions = {'saved': [], 'passed': [], 'starred': []}
         
         # Load summaries cache
         if os.path.exists(self.summaries_cache):
@@ -177,9 +177,14 @@ class CandidateService:
         """Save swipe decision"""
         timestamp = datetime.now().isoformat()
         
-        # Check if already in saved/passed lists
+        # Ensure all decision types exist
+        if 'starred' not in self.decisions:
+            self.decisions['starred'] = []
+        
+        # Check if already in saved/passed/starred lists
         saved_ids = [item['id'] for item in self.decisions['saved']]
         passed_ids = [item['id'] for item in self.decisions['passed']]
+        starred_ids = [item['id'] for item in self.decisions['starred']]
         
         if decision == 'save':
             if candidate_id not in saved_ids:
@@ -190,6 +195,12 @@ class CandidateService:
         elif decision == 'pass':
             if candidate_id not in passed_ids:
                 self.decisions['passed'].append({
+                    'id': candidate_id,
+                    'timestamp': timestamp
+                })
+        elif decision == 'star':
+            if candidate_id not in starred_ids:
+                self.decisions['starred'].append({
                     'id': candidate_id,
                     'timestamp': timestamp
                 })
@@ -211,25 +222,41 @@ class CandidateService:
             self.decisions['saved'] = [d for d in self.decisions['saved'] if d.get('id') != candidate_id]
         elif decision == 'pass':
             self.decisions['passed'] = [d for d in self.decisions['passed'] if d.get('id') != candidate_id]
+        elif decision == 'star':
+            if 'starred' in self.decisions:
+                self.decisions['starred'] = [d for d in self.decisions['starred'] if d.get('id') != candidate_id]
 
         self._save_data()
         return {'success': True, 'undone_candidate_id': candidate_id}
 
     def restart_session(self):
         """Clear all decisions and start over"""
-        self.decisions = {'saved': [], 'passed': []}
+        self.decisions = {'saved': [], 'passed': [], 'starred': []}
         self.swipe_history = []
         self._save_data()
         return {'success': True}
 
     def get_saved_candidates(self):
-        """Get all saved candidates"""
+        """Get all saved candidates (both regular saves and starred)"""
         saved_candidates = []
         
+        # Add regular saved candidates
         for saved in self.decisions['saved']:
             candidate = self.get_candidate(saved['id'])
             if candidate:
                 candidate['saved_at'] = saved['timestamp']
+                candidate['is_starred'] = False
                 saved_candidates.append(candidate)
         
+        # Add starred candidates
+        if 'starred' in self.decisions:
+            for starred in self.decisions['starred']:
+                candidate = self.get_candidate(starred['id'])
+                if candidate:
+                    candidate['saved_at'] = starred['timestamp']
+                    candidate['is_starred'] = True
+                    saved_candidates.append(candidate)
+        
+        # Sort by timestamp (most recent first)
+        saved_candidates.sort(key=lambda x: x['saved_at'], reverse=True)
         return saved_candidates 
