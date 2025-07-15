@@ -117,15 +117,8 @@ function displayCard(candidate) {
     // Clone template
     const card = template.content.cloneNode(true);
     
-    // Calculate total experience from distribution
-    let totalYears = 0;
-    if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
-        totalYears = Object.values(candidate.experience_distribution).reduce((sum, years) => sum + (years || 0), 0);
-    }
-    
     // Fill in candidate data
     card.querySelector('.candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
-    card.querySelector('.experience-total').textContent = totalYears > 0 ? `${totalYears} years` : 'Experience TBD';
     card.querySelector('.summary-text').textContent = candidate.summary || 'No summary available';
     
     // Add reservations (black bullet points)
@@ -336,14 +329,8 @@ function displaySavedCandidates(saved) {
         const template = document.getElementById('saved-card-template');
         const card = template.content.cloneNode(true);
         
-        // Calculate total experience from distribution
-        let totalYears = 0;
-        if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
-            totalYears = Object.values(candidate.experience_distribution).reduce((sum, years) => sum + (years || 0), 0);
-        }
-        
         card.querySelector('.saved-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
-        card.querySelector('.saved-experience').textContent = totalYears > 0 ? `${totalYears} years experience` : 'Experience TBD';
+        card.querySelector('.saved-experience').textContent = '';
         
         // Store candidate data for viewing
         const viewBtn = card.querySelector('.view-btn');

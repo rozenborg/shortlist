@@ -446,7 +446,7 @@ body {
 /* Card Header */
 .card-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 20px;
 }
@@ -455,15 +455,6 @@ body {
     font-size: 1.8em;
     font-weight: 600;
     color: #333;
-}
-
-.experience-badge {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.9em;
-    font-weight: 500;
 }
 
 /* Card Content */
