@@ -84,21 +84,34 @@ def process_batch():
         'results': results
     })
 
-@app.route('/api/customize', methods=['GET', 'POST'])
-def customize():
+@app.route('/api/job-description', methods=['GET', 'POST'])
+def job_description():
+    """Handle job description for candidate screening"""
     if request.method == 'POST':
         data = request.json
         job_description = data.get('job_description', '')
-        instructions = data.get('instructions', '')
-        result = customization_service.update_settings(job_description, instructions)
-        # Invalidate cache to force re-summarization
+        
+        if not job_description.strip():
+            return jsonify({'error': 'Job description is required'}), 400
+            
+        result = customization_service.update_settings(job_description)
+        
+        # Clear cache to force re-analysis with new job description
         if os.path.exists(candidate_service.summaries_cache):
             os.remove(candidate_service.summaries_cache)
+            
+        # Start processing resumes with the new job description
         background_processor.start_background_processing()
+        
         return jsonify(result)
     else:
+        # GET request - check if job description exists
         settings = customization_service.get_settings()
-        return jsonify(settings)
+        has_job_description = bool(settings.get('job_description', '').strip())
+        return jsonify({
+            'has_job_description': has_job_description,
+            'job_description': settings.get('job_description', '')
+        })
 
 @app.route('/api/undo', methods=['POST'])
 def undo_swipe():
@@ -110,9 +123,7 @@ def undo_swipe():
 def restart_session():
     """Restart the session"""
     result = candidate_service.restart_session()
-    # Also, clear the cache for a full restart
-    if os.path.exists(candidate_service.summaries_cache):
-        os.remove(candidate_service.summaries_cache)
+    # Don't clear the job description, just the decisions
     background_processor.start_background_processing()
     return jsonify(result)
 

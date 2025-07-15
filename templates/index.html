@@ -14,9 +14,6 @@
             <h1 class="app-title">Swipe</h1>
             <p class="app-subtitle">Application Review System</p>
             <div class="header-actions">
-                <button class="header-btn" id="customize-btn" onclick="openCustomizeModal()">
-                    <span class="btn-icon">⚙️</span> Customize
-                </button>
                 <button class="header-btn" onclick="undoLastSwipe()">
                     <span class="btn-icon">↩️</span> Undo
                 </button>
@@ -26,8 +23,26 @@
             </div>
         </header>
 
+        <!-- Job Description Input Screen -->
+        <div id="job-description-screen" class="job-description-screen" style="display:none;">
+            <div class="job-description-container">
+                <h2>Let's get started!</h2>
+                <p>Paste the job description below to begin reviewing candidates.</p>
+                <textarea 
+                    id="job-description-input" 
+                    rows="15" 
+                    placeholder="Paste the full job description here..."
+                    class="job-description-textarea"
+                ></textarea>
+                <button class="start-btn" onclick="submitJobDescription()">
+                    <span class="spinner"></span>
+                    <span class="btn-text">Start Reviewing Candidates</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" id="main-content" style="display:none;">
             <!-- Left Panel - Instructions -->
             <div class="left-panel">
                 <div class="instructions">
@@ -64,77 +79,38 @@
                 
                 <div class="processing-status">
                     <h3>Processing Status</h3>
-                    <div class="status-item">
-                        <span class="status-label">Status:</span>
-                        <span class="status-value" id="processing-status">Loading...</span>
+                    <div class="status-content">
+                        <div id="processing-indicator" class="processing-indicator">
+                            <span class="status-text">Idle</span>
+                        </div>
+                        <div class="progress-bar" style="display:none;">
+                            <div class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <p class="progress-text"></p>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">Progress:</span>
-                        <span class="status-value" id="processing-progress">0%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill"></div>
-                    </div>
-                    <button class="process-btn" onclick="forceProcessNextBatch()">
-                        Process Next Batch
-                    </button>
                 </div>
             </div>
 
-            <!-- Center - Card Stack -->
+            <!-- Center Panel - Card Display -->
             <div class="center-panel">
-                <div class="card-container" id="card-container">
-                    <div class="no-more-cards" id="no-more-cards" style="display: none;">
-                        <h2>All Done! 🎉</h2>
-                        <p>You've reviewed all available applications.</p>
-                        <button class="reset-button" onclick="resetDecisions()">Start Over</button>
-                    </div>
+                <div id="card-container" class="card-container">
+                    <!-- Cards will be dynamically inserted here -->
                 </div>
                 
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button class="action-btn pass-btn" onclick="swipeLeft()">
-                        <span class="btn-icon">❌</span>
-                        <span class="btn-text">Pass</span>
-                    </button>
-                    <button class="action-btn save-btn" onclick="swipeRight()">
-                        <span class="btn-icon">✅</span>
-                        <span class="btn-text">Save</span>
-                    </button>
+                <div id="no-more-cards" class="no-more-cards" style="display:none;">
+                    <h2>No More Candidates</h2>
+                    <p>You've reviewed all available candidates!</p>
+                    <button onclick="window.location.reload()">Refresh</button>
                 </div>
             </div>
 
-            <!-- Right Panel - Saved Deck -->
+            <!-- Right Panel - Saved Candidates -->
             <div class="right-panel">
                 <h3>Saved Candidates</h3>
-                <div class="saved-deck" id="saved-deck">
-                    <p class="empty-message">No candidates saved yet</p>
+                <div id="saved-candidates" class="saved-candidates">
+                    <!-- Saved candidates will be displayed here -->
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Customization Modal -->
-    <div id="customize-modal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeCustomizeModal()">&times;</span>
-            <h2>Customize Summaries</h2>
-            <p>Provide a job description and instructions to tailor the resume summaries.</p>
-            
-            <div class="form-group">
-                <label for="job-description">Job Description</label>
-                <textarea id="job-description" rows="10" placeholder="Paste the job description here..."></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="instructions">Summarization Instructions</label>
-                <textarea id="instructions" rows="5" placeholder="e.g., Focus on leadership skills, check for specific certifications, etc."></textarea>
-            </div>
-            
-            <button class="modal-btn" onclick="saveCustomization()">
-                <span class="spinner"></span>
-                <span class="btn-text">Save and Re-summarize</span>
-            </button>
         </div>
     </div>
 
@@ -143,9 +119,8 @@
         <div class="candidate-card">
             <div class="card-header">
                 <h2 class="candidate-name"></h2>
-                <div class="fit-score">
-                    <span class="score-label">Fit Score</span>
-                    <span class="score-value"></span>
+                <div class="experience-badge">
+                    <span class="experience-level"></span>
                 </div>
             </div>
             
@@ -156,23 +131,23 @@
                 </div>
                 
                 <div class="section">
-                    <h4>Key Skills</h4>
-                    <div class="skills-container"></div>
-                </div>
-                
-                <div class="section">
-                    <h4>Experience Level</h4>
-                    <p class="experience-level"></p>
-                </div>
-                
-                <div class="section">
                     <h4>Notable Achievements</h4>
                     <ul class="achievements-list"></ul>
                 </div>
                 
                 <div class="section">
+                    <h4>Potential Reservations</h4>
+                    <ul class="reservations-list"></ul>
+                </div>
+                
+                <div class="section">
                     <h4>Fit Reasoning</h4>
                     <p class="fit-reasoning"></p>
+                </div>
+                
+                <div class="section">
+                    <h4>Highlighted Skills</h4>
+                    <div class="skills-container"></div>
                 </div>
             </div>
         </div>
@@ -182,7 +157,7 @@
     <template id="saved-card-template">
         <div class="saved-card">
             <h4 class="saved-name"></h4>
-            <div class="saved-score">Score: <span></span>/10</div>
+            <div class="saved-experience"></div>
             <button class="view-btn" onclick="viewCandidate(this)">View Details</button>
         </div>
     </template>

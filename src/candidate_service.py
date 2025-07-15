@@ -44,19 +44,28 @@ class CandidateService:
         """Generate a summary of the candidate using LLM"""
         settings = self.customization_service.get_settings()
         job_description = settings.get('job_description', '')
-        instructions = settings.get('instructions', '')
 
         prompt = f"""
-        Analyze the resume for {candidate_name} based on the job description below.
-        Return a JSON object with keys: "summary", "skills", "experience_level", "achievements", "fit_score", and "fit_reasoning".
+        Analyze this resume based on the job description below. 
+        
+        IMPORTANT: 
+        1. Generate a 2-3 word nickname for this candidate based on their profile (e.g., "Data Wizard", "Marketing Guru", "Full Stack Pro"). DO NOT use real names or any gender-specific terms.
+        2. Never reference gender in any part of your analysis.
+        
+        Return a JSON object with these exact keys:
+        - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
+        - "summary": A concise summary of the candidate's background and experience
+        - "achievements": An array of 3-5 notable achievements from their career
+        - "skills": An array of key skills (5-8 items)
+        - "experience_level": Their experience level (e.g., "5+ years", "Senior level", etc.)
+        - "reservations": An array of 2-3 potential concerns or gaps for this specific role
+        - "fit_reasoning": A brief explanation of why they might be a good fit for this role
 
         Job Description:
         {job_description if job_description else "Not provided."}
 
-        Your summary should follow these instructions:
-        ---
-        {instructions if instructions else "Provide a general summary highlighting key qualifications."}
-        ---
+        Resume to analyze:
+        {resume_text[:3000]}...
         """
         
         try:
@@ -72,25 +81,31 @@ class CandidateService:
                 if clean_response.endswith('```'):
                     clean_response = clean_response[:-3]
                 
-                return json.loads(clean_response.strip())
+                result = json.loads(clean_response.strip())
+                # Ensure nickname is present
+                if 'nickname' not in result:
+                    result['nickname'] = 'Anonymous Pro'
+                return result
             except json.JSONDecodeError:
                 # Fallback: create structured response
                 return {
+                    "nickname": "Review Pending",
                     "summary": response[:200] + "...",
                     "skills": ["Skill extraction pending"],
                     "experience_level": "To be determined",
                     "achievements": ["Achievement extraction pending"],
-                    "fit_score": 5,
+                    "reservations": ["Manual review needed"],
                     "fit_reasoning": "Manual review needed"
                 }
         except Exception as e:
             print(f"Error generating summary: {e}")
             return {
+                "nickname": "Processing Error",
                 "summary": "Error generating summary",
                 "skills": [],
                 "experience_level": "Unknown",
                 "achievements": [],
-                "fit_score": 0,
+                "reservations": ["Error in processing"],
                 "fit_reasoning": "Error in processing"
             }
     
@@ -110,24 +125,26 @@ class CandidateService:
             
             # Check if summary exists in cache
             if candidate_id in self.summaries:
+                summary_data = self.summaries[candidate_id]
                 candidate = {
                     'id': candidate_id,
-                    'name': resume['name'],
+                    'name': summary_data.get('nickname', 'Anonymous Pro'),  # Use nickname instead of real name
                     'filename': resume['filename'],
-                    **self.summaries[candidate_id]
+                    **summary_data
                 }
                 candidates.append(candidate)
             else:
                 # Add placeholder for unprocessed candidates
                 candidate = {
                     'id': candidate_id,
-                    'name': resume['name'],
+                    'name': 'Processing...',
+                    'nickname': 'Processing...',
                     'filename': resume['filename'],
                     'summary': 'Processing...',
                     'skills': ['Processing...'],
                     'experience_level': 'Processing...',
                     'achievements': ['Processing...'],
-                    'fit_score': 0,
+                    'reservations': ['Processing...'],
                     'fit_reasoning': 'Processing...',
                     'processing': True
                 }
@@ -147,11 +164,12 @@ class CandidateService:
                     self.summaries[candidate_id] = summary
                     self._save_data()
                 
+                summary_data = self.summaries[candidate_id]
                 return {
                     'id': candidate_id,
-                    'name': resume['name'],
+                    'name': summary_data.get('nickname', 'Anonymous Pro'),  # Use nickname instead of real name
                     'filename': resume['filename'],
-                    **self.summaries[candidate_id]
+                    **summary_data
                 }
         
         return None

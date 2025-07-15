@@ -9,12 +9,73 @@ let stats = {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-    loadCandidates();
-    loadSavedCandidates();
+    checkJobDescription();
     setupKeyboardControls();
     startProcessingStatusUpdates();
-    checkCustomizationStatus();
 });
+
+// Check if job description exists
+async function checkJobDescription() {
+    try {
+        const response = await fetch('/api/job-description');
+        const data = await response.json();
+        
+        if (data.has_job_description) {
+            // Show main content and load candidates
+            document.getElementById('job-description-screen').style.display = 'none';
+            document.getElementById('main-content').style.display = 'flex';
+            loadCandidates();
+            loadSavedCandidates();
+        } else {
+            // Show job description input screen
+            document.getElementById('job-description-screen').style.display = 'flex';
+            document.getElementById('main-content').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking job description:', error);
+    }
+}
+
+// Submit job description
+async function submitJobDescription() {
+    const jobDescription = document.getElementById('job-description-input').value.trim();
+    
+    if (!jobDescription) {
+        alert('Please enter a job description');
+        return;
+    }
+    
+    const button = document.querySelector('.start-btn');
+    button.classList.add('loading');
+    button.disabled = true;
+    
+    try {
+        const response = await fetch('/api/job-description', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job_description: jobDescription })
+        });
+        
+        if (response.ok) {
+            // Hide job description screen and show main content
+            document.getElementById('job-description-screen').style.display = 'none';
+            document.getElementById('main-content').style.display = 'flex';
+            
+            // Start loading candidates
+            loadCandidates();
+            loadSavedCandidates();
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Failed to save job description');
+        }
+    } catch (error) {
+        console.error('Error submitting job description:', error);
+        alert('Error submitting job description. Please try again.');
+    } finally {
+        button.classList.remove('loading');
+        button.disabled = false;
+    }
+}
 
 // Load candidates from API
 async function loadCandidates() {
@@ -57,11 +118,30 @@ function displayCard(candidate) {
     const card = template.content.cloneNode(true);
     
     // Fill in candidate data
-    card.querySelector('.candidate-name').textContent = candidate.name;
-    card.querySelector('.score-value').textContent = candidate.fit_score + '/10';
-    card.querySelector('.summary-text').textContent = candidate.summary;
-    card.querySelector('.experience-level').textContent = candidate.experience_level;
-    card.querySelector('.fit-reasoning').textContent = candidate.fit_reasoning;
+    card.querySelector('.candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
+    card.querySelector('.experience-level').textContent = candidate.experience_level || 'Unknown';
+    card.querySelector('.summary-text').textContent = candidate.summary || 'No summary available';
+    card.querySelector('.fit-reasoning').textContent = candidate.fit_reasoning || 'No reasoning provided';
+    
+    // Add achievements
+    const achievementsList = card.querySelector('.achievements-list');
+    if (Array.isArray(candidate.achievements)) {
+        candidate.achievements.forEach(achievement => {
+            const li = document.createElement('li');
+            li.textContent = achievement;
+            achievementsList.appendChild(li);
+        });
+    }
+    
+    // Add reservations
+    const reservationsList = card.querySelector('.reservations-list');
+    if (Array.isArray(candidate.reservations)) {
+        candidate.reservations.forEach(reservation => {
+            const li = document.createElement('li');
+            li.textContent = reservation;
+            reservationsList.appendChild(li);
+        });
+    }
     
     // Add skills
     const skillsContainer = card.querySelector('.skills-container');
@@ -71,16 +151,6 @@ function displayCard(candidate) {
             skillTag.className = 'skill-tag';
             skillTag.textContent = skill;
             skillsContainer.appendChild(skillTag);
-        });
-    }
-    
-    // Add achievements
-    const achievementsList = card.querySelector('.achievements-list');
-    if (Array.isArray(candidate.achievements)) {
-        candidate.achievements.forEach(achievement => {
-            const li = document.createElement('li');
-            li.textContent = achievement;
-            achievementsList.appendChild(li);
         });
     }
     
@@ -228,11 +298,11 @@ function updateStats() {
 
 // Display saved candidates
 function displaySavedCandidates(saved) {
-    const deck = document.getElementById('saved-deck');
-    deck.innerHTML = '';
+    const container = document.getElementById('saved-candidates');
+    container.innerHTML = '';
     
     if (saved.length === 0) {
-        deck.innerHTML = '<p class="empty-message">No candidates saved yet</p>';
+        container.innerHTML = '<p class="empty-message">No candidates saved yet</p>';
         return;
     }
     
@@ -240,14 +310,14 @@ function displaySavedCandidates(saved) {
         const template = document.getElementById('saved-card-template');
         const card = template.content.cloneNode(true);
         
-        card.querySelector('.saved-name').textContent = candidate.name;
-        card.querySelector('.saved-score span').textContent = candidate.fit_score;
+        card.querySelector('.saved-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
+        card.querySelector('.saved-experience').textContent = candidate.experience_level || '';
         
         // Store candidate data for viewing
         const viewBtn = card.querySelector('.view-btn');
         viewBtn.dataset.candidateId = candidate.id;
         
-        deck.appendChild(card);
+        container.appendChild(card);
     });
 }
 
@@ -263,78 +333,6 @@ function showNoMoreCards() {
     const container = document.getElementById('card-container');
     container.innerHTML = '';
     document.getElementById('no-more-cards').style.display = 'block';
-}
-
-// Reset decisions
-async function resetDecisions() {
-    if (!confirm('Are you sure you want to reset all decisions?')) {
-        return;
-    }
-    
-    // In a real app, this would call an API to reset decisions
-    // For now, just reload the page
-    window.location.reload();
-}
-
-// Customization Modal
-async function openCustomizeModal() {
-    const modal = document.getElementById('customize-modal');
-    try {
-        const response = await fetch('/api/customize');
-        const settings = await response.json();
-        document.getElementById('job-description').value = settings.job_description;
-        document.getElementById('instructions').value = settings.instructions;
-        modal.style.display = 'flex';
-    } catch (error) {
-        console.error('Error loading settings:', error);
-        alert('Could not load customization settings.');
-    }
-}
-
-function closeCustomizeModal() {
-    document.getElementById('customize-modal').style.display = 'none';
-}
-
-async function saveCustomization() {
-    const jobDescription = document.getElementById('job-description').value;
-    const instructions = document.getElementById('instructions').value;
-    const saveBtn = document.querySelector('.modal-btn');
-
-    saveBtn.classList.add('loading');
-
-    try {
-        await fetch('/api/customize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                job_description: jobDescription,
-                instructions: instructions
-            })
-        });
-        closeCustomizeModal();
-        checkCustomizationStatus();
-        loadCandidates(); // Reload candidates to reflect new summaries
-    } catch (error) {
-        console.error('Error saving settings:', error);
-        alert('Could not save customization settings.');
-    } finally {
-        saveBtn.classList.remove('loading');
-    }
-}
-
-async function checkCustomizationStatus() {
-    try {
-        const response = await fetch('/api/customize');
-        const settings = await response.json();
-        const customizeBtn = document.getElementById('customize-btn');
-        if (settings.job_description || settings.instructions) {
-            customizeBtn.classList.add('configured');
-        } else {
-            customizeBtn.classList.remove('configured');
-        }
-    } catch (error) {
-        console.error('Error checking customization status:', error);
-    }
 }
 
 // Undo last swipe
@@ -358,7 +356,7 @@ async function undoLastSwipe() {
 
 // Confirm and restart session
 function confirmRestart() {
-    if (confirm('Are you sure you want to restart? All saved and passed candidates will be cleared.')) {
+    if (confirm('Are you sure you want to restart? This will clear all saved and passed candidates.')) {
         restartSession();
     }
 }
@@ -371,6 +369,17 @@ async function restartSession() {
         console.error('Error restarting session:', error);
         alert('An error occurred while restarting the session.');
     }
+}
+
+// Reset decisions
+async function resetDecisions() {
+    if (!confirm('Are you sure you want to reset all decisions?')) {
+        return;
+    }
+    
+    // In a real app, this would call an API to reset decisions
+    // For now, just reload the page
+    window.location.reload();
 }
 
 // Processing status updates

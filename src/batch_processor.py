@@ -13,26 +13,31 @@ class BatchProcessor:
     def create_batch_prompt(self, resumes_data: List[Dict], customization_settings: Dict) -> str:
         """Create a single prompt for multiple resumes"""
         job_description = customization_settings.get('job_description', '')
-        instructions = customization_settings.get('instructions', '')
         
         batch_prompt = f"""
-        Analyze the resumes below based on the following job description and instructions.
-        Return a JSON array, with each object containing keys: "summary", "skills", "experience_level", "achievements", "fit_score", and "fit_reasoning".
+        Analyze the resumes below based on the following job description.
+        
+        IMPORTANT: 
+        1. Generate a 2-3 word nickname for each candidate based on their profile (e.g., "Data Wizard", "Marketing Guru", "Full Stack Pro"). DO NOT use real names or any gender-specific terms.
+        2. Never reference gender in any part of your analysis.
+        
+        Return a JSON array, with each object containing these exact keys:
+        - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
+        - "summary": A concise summary of the candidate's background and experience
+        - "achievements": An array of 3-5 notable achievements from their career
+        - "skills": An array of key skills (5-8 items)
+        - "experience_level": Their experience level (e.g., "5+ years", "Senior level", etc.)
+        - "reservations": An array of 2-3 potential concerns or gaps for this specific role
+        - "fit_reasoning": A brief explanation of why they might be a good fit for this role
 
         Job Description:
         {job_description if job_description else "Not provided."}
-
-        Your summary for each candidate should follow these instructions:
-        ---
-        {instructions if instructions else "Provide a general summary highlighting key qualifications."}
-        ---
 
         Resumes to analyze:
         """
         
         for i, resume_data in enumerate(resumes_data):
             batch_prompt += f"\n\nRESUME {i+1} (ID: {resume_data['id']}):\n"
-            batch_prompt += f"Candidate: {resume_data['name']}\n"
             batch_prompt += f"Content: {resume_data['text'][:2000]}...\n"  # Limit text length
             batch_prompt += "---"
         
@@ -41,19 +46,28 @@ class BatchProcessor:
     def process_single_resume(self, resume_data: Dict, customization_settings: Dict) -> Dict:
         """Process a single resume (fallback method)"""
         job_description = customization_settings.get('job_description', '')
-        instructions = customization_settings.get('instructions', '')
 
         prompt = f"""
-        Analyze the resume for {resume_data['name']} based on the job description below.
-        Return a JSON object with keys: "summary", "skills", "experience_level", "achievements", "fit_score", and "fit_reasoning".
+        Analyze this resume based on the job description below.
+        
+        IMPORTANT: 
+        1. Generate a 2-3 word nickname for this candidate based on their profile (e.g., "Data Wizard", "Marketing Guru", "Full Stack Pro"). DO NOT use real names or any gender-specific terms.
+        2. Never reference gender in any part of your analysis.
+        
+        Return a JSON object with these exact keys:
+        - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
+        - "summary": A concise summary of the candidate's background and experience
+        - "achievements": An array of 3-5 notable achievements from their career
+        - "skills": An array of key skills (5-8 items)
+        - "experience_level": Their experience level (e.g., "5+ years", "Senior level", etc.)
+        - "reservations": An array of 2-3 potential concerns or gaps for this specific role
+        - "fit_reasoning": A brief explanation of why they might be a good fit for this role
 
         Job Description:
         {job_description if job_description else "Not provided."}
-
-        Your summary should follow these instructions:
-        ---
-        {instructions if instructions else "Provide a general summary highlighting key qualifications."}
-        ---
+        
+        Resume to analyze:
+        {resume_data['text'][:3000]}...
         """
         
         try:
@@ -80,22 +94,24 @@ class BatchProcessor:
     def _parse_fallback_response(self, response: str) -> Dict:
         """Parse non-JSON response as fallback"""
         return {
+            "nickname": "Review Pending",
             "summary": response[:200] + "...",
             "skills": ["Analysis pending"],
             "experience_level": "To be determined",
             "achievements": ["Manual review needed"],
-            "fit_score": 5,
+            "reservations": ["Unable to analyze automatically"],
             "fit_reasoning": "Automated analysis incomplete"
         }
     
     def _create_error_response(self) -> Dict:
         """Create error response"""
         return {
+            "nickname": "Error Processing",
             "summary": "Error processing resume",
             "skills": ["Error"],
             "experience_level": "Unknown",
             "achievements": ["Error in processing"],
-            "fit_score": 0,
+            "reservations": ["Processing error occurred"],
             "fit_reasoning": "Processing error occurred"
         }
     

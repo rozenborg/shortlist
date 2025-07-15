@@ -13,8 +13,7 @@ class CustomizationService:
             with open(self.settings_file, 'r') as f:
                 return json.load(f)
         return {
-            'job_description': '',
-            'instructions': ''
+            'job_description': ''
         }
 
     def _save_settings(self):
@@ -27,9 +26,8 @@ class CustomizationService:
         """Get the current customization settings."""
         return self.settings
 
-    def update_settings(self, job_description, instructions):
+    def update_settings(self, job_description):
         """Update and save the customization settings."""
         self.settings['job_description'] = job_description
-        self.settings['instructions'] = instructions
         self._save_settings()
         return {'success': True} 
