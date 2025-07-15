@@ -121,3 +121,4 @@ compiled/
 
 # Pyre type checker
 .pyre/ 
+candidates/ 
