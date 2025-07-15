@@ -152,6 +152,10 @@ function displayCard(candidate) {
         });
     }
     
+    // Add wildcard
+    const wildcardText = card.querySelector('.wildcard-text');
+    wildcardText.textContent = candidate.wildcard || 'No wildcard information available';
+    
     // Add experience distribution
     const experienceDistribution = card.querySelector('.experience-distribution');
     if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
@@ -330,10 +334,19 @@ function swipeStar() {
 // Keyboard controls
 function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-            swipeLeft();
-        } else if (e.key === 'ArrowRight') {
-            swipeRight();
+        // Check if modal is open
+        const modal = document.getElementById('candidate-modal');
+        const isModalOpen = modal && modal.style.display === 'block';
+        
+        if (isModalOpen && e.key === 'Escape') {
+            closeCandidateModal();
+        } else if (!isModalOpen) {
+            // Only handle swipe keys when modal is not open
+            if (e.key === 'ArrowLeft') {
+                swipeLeft();
+            } else if (e.key === 'ArrowRight') {
+                swipeRight();
+            }
         }
     });
 }
@@ -376,10 +389,105 @@ function displaySavedCandidates(saved) {
 }
 
 // View candidate details
-function viewCandidate(button) {
+async function viewCandidate(button) {
     const candidateId = button.dataset.candidateId;
-    // In a real app, this would open a modal or navigate to a detail page
-    alert(`View details for candidate ${candidateId}`);
+    
+    try {
+        const response = await fetch(`/api/candidate/${candidateId}`);
+        if (response.ok) {
+            const candidate = await response.json();
+            openCandidateModal(candidate);
+        } else {
+            alert('Error loading candidate details');
+        }
+    } catch (error) {
+        console.error('Error fetching candidate details:', error);
+        alert('Error loading candidate details');
+    }
+}
+
+// Open candidate details modal
+function openCandidateModal(candidate) {
+    const modal = document.getElementById('candidate-modal');
+    
+    // Populate modal content
+    document.getElementById('modal-candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
+    document.getElementById('modal-summary').textContent = candidate.summary || 'No summary available';
+    document.getElementById('modal-wildcard').textContent = candidate.wildcard || 'No wildcard information available';
+    
+    // Populate fit indicators
+    const fitIndicatorsList = document.getElementById('modal-fit-indicators');
+    fitIndicatorsList.innerHTML = '';
+    if (Array.isArray(candidate.fit_indicators)) {
+        candidate.fit_indicators.forEach(indicator => {
+            const li = document.createElement('li');
+            li.textContent = indicator;
+            fitIndicatorsList.appendChild(li);
+        });
+    }
+    
+    // Populate reservations
+    const reservationsList = document.getElementById('modal-reservations');
+    reservationsList.innerHTML = '';
+    if (Array.isArray(candidate.reservations)) {
+        candidate.reservations.forEach(reservation => {
+            const li = document.createElement('li');
+            li.textContent = reservation;
+            reservationsList.appendChild(li);
+        });
+    }
+    
+    // Populate achievements
+    const achievementsList = document.getElementById('modal-achievements');
+    achievementsList.innerHTML = '';
+    if (Array.isArray(candidate.achievements)) {
+        candidate.achievements.forEach(achievement => {
+            const li = document.createElement('li');
+            li.textContent = achievement;
+            achievementsList.appendChild(li);
+        });
+    }
+    
+    // Populate experience distribution
+    const experienceDistribution = document.getElementById('modal-experience-distribution');
+    experienceDistribution.innerHTML = '';
+    if (candidate.experience_distribution && typeof candidate.experience_distribution === 'object') {
+        const sectors = ['corporate', 'startup', 'nonprofit', 'government', 'education', 'other'];
+        sectors.forEach(sector => {
+            const years = candidate.experience_distribution[sector] || 0;
+            if (years > 0) {
+                const item = document.createElement('div');
+                item.className = 'modal-experience-item';
+                item.innerHTML = `
+                    <span class="modal-experience-sector">${sector.charAt(0).toUpperCase() + sector.slice(1)}</span>
+                    <span class="modal-experience-years">${years} year${years !== 1 ? 's' : ''}</span>
+                `;
+                experienceDistribution.appendChild(item);
+            }
+        });
+        
+        if (experienceDistribution.children.length === 0) {
+            experienceDistribution.innerHTML = '<p style="color: #999; font-style: italic;">Experience distribution unavailable</p>';
+        }
+    } else {
+        experienceDistribution.innerHTML = '<p style="color: #999; font-style: italic;">Experience distribution unavailable</p>';
+    }
+    
+    // Show modal
+    modal.style.display = 'block';
+    
+    // Close modal when clicking outside of it
+    modal.onclick = function(event) {
+        if (event.target === modal) {
+            closeCandidateModal();
+        }
+    };
+}
+
+// Close candidate details modal
+function closeCandidateModal() {
+    const modal = document.getElementById('candidate-modal');
+    modal.style.display = 'none';
 }
 
 // Show no more cards message

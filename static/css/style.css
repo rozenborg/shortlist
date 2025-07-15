@@ -292,6 +292,12 @@ body {
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.left-panel::-webkit-scrollbar, .right-panel::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
 }
 
 .center-panel {
@@ -409,7 +415,8 @@ body {
 /* Card Container */
 .card-container {
     position: relative;
-    width: 400px;
+    width: 90%;
+    max-width: 600px;
     height: 600px;
     margin-bottom: 30px;
 }
@@ -422,10 +429,12 @@ body {
     background: white;
     border-radius: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    padding: 30px;
+    padding: 0;
     cursor: grab;
     transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-    overflow-y: auto;
+    overflow: hidden; /* Prevent header from bleeding outside card */
+    display: flex;
+    flex-direction: column;
 }
 
 .candidate-card.dragging {
@@ -454,29 +463,64 @@ body {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    margin-bottom: 20px;
+    margin: 0;
+    padding: 20px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .candidate-name {
-    font-size: 1.8em;
+    font-size: 1.6rem;
     font-weight: 600;
-    color: #333;
+    color: white;
+    margin: 0;
 }
 
 /* Card Content */
+.card-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 0 0 0;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.card-content::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
+}
+
 .section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    padding: 0 30px;
 }
 
 .section h4 {
-    font-size: 1.1em;
-    color: #555;
-    margin-bottom: 10px;
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 4px;
 }
 
 .summary-text, .experience-level, .fit-reasoning {
-    color: #666;
+    color: #555;
     line-height: 1.6;
+    margin: 0;
+}
+
+.wildcard-text {
+    color: #555;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Wildcard specific styling */
+.wildcard-text {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-style: italic;
+    border-left: 4px solid #667eea;
 }
 
 /* Skills */
@@ -497,67 +541,40 @@ body {
 /* Achievements */
 .achievements-list {
     list-style: none;
-    padding-left: 0;
+    padding-left: 20px;
+    margin: 0;
 }
 
 .achievements-list li {
-    position: relative;
-    padding-left: 20px;
     margin-bottom: 8px;
-    color: #666;
+    color: #555;
     line-height: 1.5;
-}
-
-.achievements-list li:before {
-    content: "•";
-    position: absolute;
-    left: 0;
-    color: #667eea;
-    font-weight: bold;
 }
 
 /* Reservations */
 .reservations-list {
     list-style: none;
-    padding-left: 0;
+    padding-left: 20px;
+    margin: 0;
 }
 
 .reservations-list li {
-    position: relative;
-    padding-left: 20px;
     margin-bottom: 8px;
-    color: #333;
+    color: #555;
     line-height: 1.5;
-}
-
-.reservations-list li:before {
-    content: "•";
-    position: absolute;
-    left: 0;
-    color: #333;
-    font-weight: bold;
 }
 
 /* Fit Indicators */
 .fit-indicators-list {
     list-style: none;
-    padding-left: 0;
+    padding-left: 20px;
+    margin: 0;
 }
 
 .fit-indicators-list li {
-    position: relative;
-    padding-left: 20px;
     margin-bottom: 8px;
-    color: #666;
+    color: #555;
     line-height: 1.5;
-}
-
-.fit-indicators-list li:before {
-    content: "✓";
-    position: absolute;
-    left: 0;
-    color: #28a745;
-    font-weight: bold;
 }
 
 /* Experience Distribution */
@@ -574,7 +591,7 @@ body {
     padding: 8px 12px;
     background: #f8f9fa;
     border-radius: 8px;
-    border-left: 3px solid #667eea;
+    border-left: 4px solid #667eea;
 }
 
 .experience-sector {
@@ -584,8 +601,8 @@ body {
 }
 
 .experience-years {
-    color: #666;
-    font-size: 0.9em;
+    font-weight: 600;
+    color: #667eea;
 }
 
 .no-experience {
@@ -782,8 +799,124 @@ body {
     }
     
     .card-container {
-        width: 100%;
-        max-width: 350px;
+        width: 95%;
+        max-width: 400px;
         height: 500px;
     }
+} 
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.modal-content::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.close-modal {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.close-modal:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-section {
+    margin-bottom: 24px;
+}
+
+.modal-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 4px;
+}
+
+.modal-section p {
+    margin: 0;
+    line-height: 1.6;
+    color: #555;
+}
+
+.modal-section ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.modal-section li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+    color: #555;
+}
+
+.modal-experience-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.modal-experience-sector {
+    font-weight: 500;
+    color: #333;
+    text-transform: capitalize;
+}
+
+.modal-experience-years {
+    font-weight: 600;
+    color: #667eea;
 } 

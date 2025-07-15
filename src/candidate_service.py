@@ -58,6 +58,7 @@ class CandidateService:
         - "reservations": An array of 2-3 potential concerns or gaps for this specific role
         - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
         - "achievements": An array of 3-5 notable achievements from their career
+        - "wildcard": A unique, interesting aspect about this candidate that stands out and likely wouldn't appear in many other resumes (e.g., unusual hobby, unique background, interesting side project, uncommon skill combination)
         - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years (can be 0)
 
         Job Description:
@@ -84,6 +85,9 @@ class CandidateService:
                 # Ensure nickname is present
                 if 'nickname' not in result:
                     result['nickname'] = 'Anonymous Pro'
+                # Ensure wildcard is present
+                if 'wildcard' not in result:
+                    result['wildcard'] = 'Unique profile details pending analysis'
                 # Ensure experience_distribution is present and properly formatted
                 if 'experience_distribution' not in result:
                     result['experience_distribution'] = {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
@@ -96,6 +100,7 @@ class CandidateService:
                     "reservations": ["Manual review needed"],
                     "fit_indicators": ["Manual review needed"],
                     "achievements": ["Achievement extraction pending"],
+                    "wildcard": "Manual review needed",
                     "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
                 }
         except Exception as e:
@@ -106,6 +111,7 @@ class CandidateService:
                 "reservations": ["Error in processing"],
                 "fit_indicators": ["Error in processing"],
                 "achievements": [],
+                "wildcard": "Error in processing",
                 "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
             }
     
@@ -144,6 +150,7 @@ class CandidateService:
                     'reservations': ['Processing...'],
                     'fit_indicators': ['Processing...'],
                     'achievements': ['Processing...'],
+                    'wildcard': 'Processing...',
                     'experience_distribution': {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0},
                     'processing': True
                 }

@@ -139,6 +139,47 @@
         </div>
     </div>
 
+    <!-- Candidate Details Modal -->
+    <div id="candidate-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-candidate-name">Candidate Details</h2>
+                <span class="close-modal" onclick="closeCandidateModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h4>Summary</h4>
+                    <p id="modal-summary"></p>
+                </div>
+                
+                <div class="modal-section">
+                    <h4>Fit Indicators</h4>
+                    <ul id="modal-fit-indicators"></ul>
+                </div>
+                
+                <div class="modal-section">
+                    <h4>Reservations</h4>
+                    <ul id="modal-reservations"></ul>
+                </div>
+                
+                <div class="modal-section">
+                    <h4>Achievements</h4>
+                    <ul id="modal-achievements"></ul>
+                </div>
+                
+                <div class="modal-section">
+                    <h4>Wildcard</h4>
+                    <p id="modal-wildcard"></p>
+                </div>
+                
+                <div class="modal-section">
+                    <h4>Experience Distribution</h4>
+                    <div id="modal-experience-distribution"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Card Template -->
     <template id="card-template">
         <div class="candidate-card">
@@ -165,6 +206,11 @@
                 <div class="section">
                     <h4>Achievements</h4>
                     <ul class="achievements-list"></ul>
+                </div>
+                
+                <div class="section">
+                    <h4>Wildcard</h4>
+                    <p class="wildcard-text"></p>
                 </div>
                 
                 <div class="section">
