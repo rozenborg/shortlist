@@ -7,6 +7,8 @@ let stats = {
     starred: 0,
     passed: 0
 };
+let passedCandidates = [];
+let savedCandidates = [];
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -99,6 +101,7 @@ async function submitJobDescription() {
             // Start loading candidates
             loadCandidates();
             loadSavedCandidates();
+            updateRightTabCounts();
             
             // Force an immediate status update to show processing has started
             setTimeout(() => {
@@ -147,6 +150,7 @@ async function loadSavedCandidates() {
         const response = await fetch('/api/saved');
         const saved = await response.json();
         displaySavedCandidates(saved);
+        updateSavedCount(saved.length);
     } catch (error) {
         console.error('Error loading saved candidates:', error);
     }
@@ -444,6 +448,19 @@ async function performSwipe(direction) {
         if (direction === 'right' || direction === 'star') {
             loadSavedCandidates();
         }
+        
+        // Update passed count if passed
+        if (direction === 'left') {
+            // Fetch updated passed count
+            fetch('/api/passed')
+                .then(response => response.json())
+                .then(passedData => {
+                    updatePassedCount(passedData.length);
+                })
+                .catch(error => {
+                    console.error('Error updating passed count:', error);
+                });
+        }
     } catch (error) {
         console.error('Error saving decision:', error);
     }
@@ -505,34 +522,41 @@ function displaySavedCandidates(saved) {
     const container = document.getElementById('saved-candidates');
     container.innerHTML = '';
     
+    // Store in global array for modal access
+    savedCandidates = saved;
+    
     if (saved.length === 0) {
         container.innerHTML = '<p class="empty-message">No candidates saved yet</p>';
         return;
     }
     
     saved.forEach((candidate, index) => {
-        const template = document.getElementById('saved-card-template');
-        const card = template.content.cloneNode(true);
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'saved-card';
+        cardDiv.draggable = true;
+        cardDiv.dataset.candidateId = candidate.id;
+        cardDiv.dataset.index = index;
         
         // Add star if candidate is starred
-        const nameElement = card.querySelector('.saved-name');
         const candidateName = candidate.name || candidate.nickname || 'Anonymous';
-        nameElement.textContent = candidate.is_starred ? `⭐ ${candidateName}` : candidateName;
+        const displayName = candidate.is_starred ? `⭐ ${candidateName}` : candidateName;
         
-        card.querySelector('.saved-experience').textContent = '';
-        
-        // Store candidate data for viewing and dragging
-        const viewBtn = card.querySelector('.view-btn');
-        viewBtn.dataset.candidateId = candidate.id;
-        
-        const cardElement = card.querySelector('.saved-card');
-        cardElement.dataset.candidateId = candidate.id;
-        cardElement.dataset.index = index;
+        cardDiv.innerHTML = `
+            <div class="drag-handle">⋮⋮</div>
+            <div class="saved-card-content">
+                <h4 class="saved-name">${displayName}</h4>
+                <div class="saved-experience">Saved ${formatTimestamp(candidate.saved_at)}</div>
+                <div class="candidate-actions">
+                    <button class="action-btn view-btn-subtle" onclick="viewCandidateFromPanel('${candidate.id}', 'saved')">View</button>
+                    <button class="action-btn pass-btn-subtle" onclick="modifyDecision('${candidate.id}', 'pass')">Pass</button>
+                </div>
+            </div>
+        `;
         
         // Add drag event listeners
-        setupDragListeners(cardElement);
+        setupDragListeners(cardDiv);
         
-        container.appendChild(card);
+        container.appendChild(cardDiv);
     });
     
     // Setup container-level drag events for better drop zone handling
@@ -669,23 +693,7 @@ async function updateCandidateOrder() {
     }
 }
 
-// View candidate details
-async function viewCandidate(button) {
-    const candidateId = button.dataset.candidateId;
-    
-    try {
-        const response = await fetch(`/api/candidate/${candidateId}`);
-        if (response.ok) {
-            const candidate = await response.json();
-            openCandidateModal(candidate);
-        } else {
-            alert('Error loading candidate details');
-        }
-    } catch (error) {
-        console.error('Error fetching candidate details:', error);
-        alert('Error loading candidate details');
-    }
-}
+
 
 // Open candidate details modal
 function openCandidateModal(candidate) {
@@ -694,15 +702,19 @@ function openCandidateModal(candidate) {
     // Populate modal content
     document.getElementById('modal-candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
     document.getElementById('modal-summary').textContent = candidate.summary || 'No summary available';
-    document.getElementById('modal-wildcard').textContent = candidate.wildcard || 'No wildcard information available';
+    // Handle wildcard which can be object or string
+    const wildcardText = typeof candidate.wildcard === 'object' 
+        ? candidate.wildcard.fact || 'No wildcard information available'
+        : candidate.wildcard || 'No wildcard information available';
+    document.getElementById('modal-wildcard').textContent = wildcardText;
     
-    // Populate fit indicators
+    // Populate fit indicators (using differentiators from API)
     const fitIndicatorsList = document.getElementById('modal-fit-indicators');
     fitIndicatorsList.innerHTML = '';
-    if (Array.isArray(candidate.fit_indicators)) {
-        candidate.fit_indicators.forEach(indicator => {
+    if (Array.isArray(candidate.differentiators)) {
+        candidate.differentiators.forEach(diff => {
             const li = document.createElement('li');
-            li.textContent = indicator;
+            li.textContent = typeof diff === 'object' ? diff.claim : diff;
             fitIndicatorsList.appendChild(li);
         });
     }
@@ -718,13 +730,13 @@ function openCandidateModal(candidate) {
         });
     }
     
-    // Populate achievements
+    // Populate achievements (using relevant_achievements from API)
     const achievementsList = document.getElementById('modal-achievements');
     achievementsList.innerHTML = '';
-    if (Array.isArray(candidate.achievements)) {
-        candidate.achievements.forEach(achievement => {
+    if (Array.isArray(candidate.relevant_achievements)) {
+        candidate.relevant_achievements.forEach(achievement => {
             const li = document.createElement('li');
-            li.textContent = achievement;
+            li.textContent = typeof achievement === 'object' ? achievement.achievement : achievement;
             achievementsList.appendChild(li);
         });
     }
@@ -1060,3 +1072,198 @@ function showNotification(message, type = 'info') {
         }, 300);
     }, 5000);
 }
+
+// Right panel tab switching functionality
+function switchRightTab(tabName) {
+    // Update active tab
+    document.querySelectorAll('.right-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-right-tab`).classList.add('active');
+    
+    // Show corresponding content
+    document.querySelectorAll('.right-tab-content').forEach(content => {
+        content.classList.remove('active');
+        content.style.display = 'none';
+    });
+    document.getElementById(`${tabName}-content`).classList.add('active');
+    document.getElementById(`${tabName}-content`).style.display = 'block';
+    
+    // Load data for the selected tab
+    if (tabName === 'passed') {
+        loadPassedCandidatesForRightPanel();
+    }
+}
+
+// Load passed candidates for right panel
+async function loadPassedCandidatesForRightPanel() {
+    try {
+        const response = await fetch('/api/passed');
+        const candidates = await response.json();
+        passedCandidates = candidates;
+        
+        updatePassedCount(candidates.length);
+        displayPassedCandidatesInRightPanel(candidates);
+    } catch (error) {
+        console.error('Error loading passed candidates:', error);
+        showNotification('Error loading passed candidates', 'error');
+    }
+}
+
+// Display passed candidates in right panel format (matching saved candidates style)
+function displayPassedCandidatesInRightPanel(candidates) {
+    const container = document.getElementById('passed-candidates');
+    container.innerHTML = '';
+    
+    if (candidates.length === 0) {
+        container.innerHTML = '<p class="empty-message">No passed candidates yet</p>';
+        return;
+    }
+    
+    candidates.forEach((candidate, index) => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'saved-card'; // Use same class as saved candidates
+        cardDiv.innerHTML = `
+            <div class="saved-card-content">
+                <h4 class="saved-name">${candidate.nickname || 'Anonymous Pro'}</h4>
+                <div class="saved-experience">Passed ${formatTimestamp(candidate.passed_at)}</div>
+                <div class="candidate-actions">
+                    <button class="action-btn view-btn-subtle" onclick="viewCandidateFromPanel('${candidate.id}', 'passed')">View</button>
+                    <button class="action-btn save-btn-subtle" onclick="modifyDecision('${candidate.id}', 'save')">Save</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(cardDiv);
+    });
+}
+
+
+
+// Modify candidate decision
+async function modifyDecision(candidateId, newDecision) {
+    try {
+        const response = await fetch('/api/modify-decision', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                candidate_id: candidateId,
+                new_decision: newDecision
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = '';
+            if (newDecision === 'unreviewed') {
+                message = 'Candidate moved back to review queue';
+            } else if (newDecision === 'save') {
+                message = 'Candidate saved successfully';
+            } else if (newDecision === 'pass') {
+                message = 'Candidate moved to passed list';
+            }
+            
+            showNotification(message, 'success');
+            
+            // Refresh right panel if passed tab is active
+            const passedTab = document.getElementById('passed-right-tab');
+            if (passedTab && passedTab.classList.contains('active')) {
+                loadPassedCandidatesForRightPanel();
+            }
+            
+            // Update counts and reload data for other views
+            loadSavedCandidates(); // Updates the saved candidates in right panel
+            updateRightTabCounts();
+            
+            // If moved back to review, reload candidates
+            if (newDecision === 'unreviewed') {
+                loadCandidates();
+            }
+        } else {
+            showNotification(result.message || 'Error modifying decision', 'error');
+        }
+    } catch (error) {
+        console.error('Error modifying decision:', error);
+        showNotification('Error modifying decision', 'error');
+    }
+}
+
+// Update right panel tab counts
+async function updateRightTabCounts() {
+    try {
+        // Update saved count
+        const savedResponse = await fetch('/api/saved');
+        const savedData = await savedResponse.json();
+        updateSavedCount(savedData.length);
+        
+        // Update passed count
+        const passedResponse = await fetch('/api/passed');
+        const passedData = await passedResponse.json();
+        updatePassedCount(passedData.length);
+        
+    } catch (error) {
+        console.error('Error updating tab counts:', error);
+    }
+}
+
+// Update saved count in right panel tab
+function updateSavedCount(count) {
+    const savedCountElement = document.getElementById('saved-tab-count');
+    if (savedCountElement) {
+        savedCountElement.textContent = count;
+    }
+}
+
+// Update passed count in right panel tab
+function updatePassedCount(count) {
+    const passedCountElement = document.getElementById('passed-tab-count');
+    if (passedCountElement) {
+        passedCountElement.textContent = count;
+    }
+}
+
+// Format timestamp for display
+function formatTimestamp(timestamp) {
+    if (!timestamp) return 'Unknown';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+}
+
+// View candidate from right panel
+function viewCandidateFromPanel(candidateId, type) {
+    let candidate = null;
+    
+    if (type === 'saved') {
+        candidate = savedCandidates.find(c => c.id === candidateId);
+    } else if (type === 'passed') {
+        candidate = passedCandidates.find(c => c.id === candidateId);
+    }
+    
+    if (candidate) {
+        openCandidateModal(candidate);
+    } else {
+        console.error('Candidate not found:', candidateId, type);
+        showNotification('Error loading candidate details', 'error');
+    }
+}
+
+// Initialize right panel tab counts on startup
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        updateRightTabCounts();
+    }, 1000); // Wait a bit for the main initialization to complete
+});

@@ -115,14 +115,14 @@
                 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
-                    <button class="action-btn pass-btn" onclick="swipeLeft()">
-                        <span class="btn-icon">❌</span> Pass
+                    <button class="main-action-btn pass-main-btn" onclick="swipeLeft()">
+                        <span class="btn-icon">✕</span> Pass
                     </button>
-                    <button class="action-btn star-btn" onclick="swipeStar()">
-                        <span class="btn-icon">⭐</span> Star
+                    <button class="main-action-btn star-main-btn" onclick="swipeStar()">
+                        <span class="btn-icon">★</span> Star
                     </button>
-                    <button class="action-btn save-btn" onclick="swipeRight()">
-                        <span class="btn-icon">✅</span> Save
+                    <button class="main-action-btn save-main-btn" onclick="swipeRight()">
+                        <span class="btn-icon">✓</span> Save
                     </button>
                 </div>
                 
@@ -133,16 +133,34 @@
                 </div>
             </div>
 
-            <!-- Right Panel - Saved Candidates -->
+            <!-- Right Panel - Candidates with Tabs -->
             <div class="right-panel">
-                <h3>Saved Candidates</h3>
-                <div id="saved-candidates" class="saved-candidates">
-                    <!-- Saved candidates will be displayed here -->
-                </div>
-                <div class="export-section">
-                    <button class="export-btn" onclick="exportCandidates()">
-                        <span class="btn-icon">📊</span> Export to Excel
+                <div class="right-panel-tabs">
+                    <button class="right-tab active" id="saved-right-tab" onclick="switchRightTab('saved')">
+                        Saved <span id="saved-tab-count" class="right-tab-count">0</span>
                     </button>
+                    <button class="right-tab" id="passed-right-tab" onclick="switchRightTab('passed')">
+                        Passed <span id="passed-tab-count" class="right-tab-count">0</span>
+                    </button>
+                </div>
+                
+                <!-- Saved Candidates Content -->
+                <div id="saved-content" class="right-tab-content active">
+                    <div id="saved-candidates" class="saved-candidates">
+                        <!-- Saved candidates will be displayed here -->
+                    </div>
+                    <div class="export-section">
+                        <button class="export-btn" onclick="exportCandidates()">
+                            <span class="btn-icon">📊</span> Export to Excel
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Passed Candidates Content -->
+                <div id="passed-content" class="right-tab-content" style="display:none;">
+                    <div id="passed-candidates" class="passed-candidates">
+                        <!-- Passed candidates will be displayed here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -235,17 +253,7 @@
         </div>
     </template>
 
-    <!-- Saved Card Template -->
-    <template id="saved-card-template">
-        <div class="saved-card" draggable="true">
-            <div class="drag-handle">⋮⋮</div>
-            <div class="saved-card-content">
-                <h4 class="saved-name"></h4>
-                <div class="saved-experience"></div>
-                <button class="view-btn" onclick="viewCandidate(this)">View Details</button>
-            </div>
-        </div>
-    </template>
+
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
