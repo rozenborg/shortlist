@@ -11,6 +11,7 @@ class CandidateService:
         self.data_folder = 'data'
         self.decisions_file = os.path.join(self.data_folder, 'decisions.json')
         self.summaries_cache = os.path.join(self.data_folder, 'summaries_cache.json')
+        self.decision_history_file = os.path.join(self.data_folder, 'decision_history.json')
         self._load_data()
         self.swipe_history = []
     
@@ -27,6 +28,13 @@ class CandidateService:
         if 'custom_order' not in self.decisions:
             self.decisions['custom_order'] = []
         
+        # Load decision history
+        if os.path.exists(self.decision_history_file):
+            with open(self.decision_history_file, 'r') as f:
+                self.decision_history = json.load(f)
+        else:
+            self.decision_history = []
+        
         # Load summaries cache
         if os.path.exists(self.summaries_cache):
             with open(self.summaries_cache, 'r') as f:
@@ -35,11 +43,14 @@ class CandidateService:
             self.summaries = {}
     
     def _save_data(self):
-        """Save decisions and summaries to files"""
+        """Save decisions, summaries, and history to files"""
         os.makedirs(self.data_folder, exist_ok=True)
         
         with open(self.decisions_file, 'w') as f:
             json.dump(self.decisions, f, indent=2)
+        
+        with open(self.decision_history_file, 'w') as f:
+            json.dump(self.decision_history, f, indent=2)
         
         with open(self.summaries_cache, 'w') as f:
             json.dump(self.summaries, f, indent=2)
@@ -152,10 +163,11 @@ class CandidateService:
         for resume in resumes:
             candidate_id = resume['id']
             
-            # Check if already processed (saved or passed)
+            # Check if already processed (saved, passed, or starred)
             saved_ids = [item['id'] for item in self.decisions['saved']]
             passed_ids = [item['id'] for item in self.decisions['passed']]
-            if candidate_id in saved_ids or candidate_id in passed_ids:
+            starred_ids = [item['id'] for item in self.decisions.get('starred', [])]
+            if candidate_id in saved_ids or candidate_id in passed_ids or candidate_id in starred_ids:
                 continue
             
             # Check if summary exists in cache
@@ -243,6 +255,16 @@ class CandidateService:
                 })
         
         self.swipe_history.append({'candidate_id': candidate_id, 'decision': decision})
+        
+        # Record initial decision in history
+        self.decision_history.append({
+            'candidate_id': candidate_id,
+            'old_decision': None,
+            'new_decision': decision,
+            'timestamp': timestamp,
+            'action': 'initial_swipe'
+        })
+        
         self._save_data()
         return {'success': True, 'decision': decision}
     
@@ -332,4 +354,85 @@ class CandidateService:
         
         self.decisions['custom_order'] = valid_ordered_ids
         self._save_data()
-        return {'success': True, 'order_updated': len(valid_ordered_ids)} 
+        return {'success': True, 'order_updated': len(valid_ordered_ids)}
+
+    def get_passed_candidates(self):
+        """Get all passed candidates with their summaries"""
+        passed_candidates = []
+        
+        for passed in self.decisions['passed']:
+            candidate = self.get_candidate(passed['id'])
+            if candidate:
+                candidate['passed_at'] = passed['timestamp']
+                passed_candidates.append(candidate)
+        
+        # Sort by timestamp (most recent first)
+        passed_candidates.sort(key=lambda x: x['passed_at'], reverse=True)
+        return passed_candidates
+
+    def modify_decision(self, candidate_id, new_decision):
+        """Modify an existing decision for a candidate"""
+        timestamp = datetime.now().isoformat()
+        
+        # Remove from all existing decision lists
+        old_decision = None
+        
+        # Check and remove from saved
+        saved_ids = [item['id'] for item in self.decisions['saved']]
+        if candidate_id in saved_ids:
+            self.decisions['saved'] = [d for d in self.decisions['saved'] if d.get('id') != candidate_id]
+            old_decision = 'saved'
+        
+        # Check and remove from passed
+        passed_ids = [item['id'] for item in self.decisions['passed']]
+        if candidate_id in passed_ids:
+            self.decisions['passed'] = [d for d in self.decisions['passed'] if d.get('id') != candidate_id]
+            old_decision = 'passed'
+        
+        # Check and remove from starred
+        if 'starred' in self.decisions:
+            starred_ids = [item['id'] for item in self.decisions['starred']]
+            if candidate_id in starred_ids:
+                self.decisions['starred'] = [d for d in self.decisions['starred'] if d.get('id') != candidate_id]
+                old_decision = 'starred'
+        
+        # Add to new decision list if not 'unreviewed'
+        if new_decision == 'save':
+            self.decisions['saved'].append({
+                'id': candidate_id,
+                'timestamp': timestamp
+            })
+        elif new_decision == 'pass':
+            self.decisions['passed'].append({
+                'id': candidate_id,
+                'timestamp': timestamp
+            })
+        elif new_decision == 'star':
+            if 'starred' not in self.decisions:
+                self.decisions['starred'] = []
+            self.decisions['starred'].append({
+                'id': candidate_id,
+                'timestamp': timestamp
+            })
+        # If new_decision is 'unreviewed', we just remove from all lists (already done above)
+        
+        # Remove from custom order if exists
+        if 'custom_order' in self.decisions and candidate_id in self.decisions['custom_order']:
+            self.decisions['custom_order'].remove(candidate_id)
+        
+        # Record decision modification in history
+        self.decision_history.append({
+            'candidate_id': candidate_id,
+            'old_decision': old_decision,
+            'new_decision': new_decision,
+            'timestamp': timestamp,
+            'action': 'modify_decision'
+        })
+        
+        self._save_data()
+        return {
+            'success': True, 
+            'old_decision': old_decision,
+            'new_decision': new_decision,
+            'candidate_id': candidate_id
+        } 

@@ -146,6 +146,29 @@ def restart_session():
     background_processor.start_background_processing()
     return jsonify(result)
 
+@app.route('/api/passed', methods=['GET'])
+def get_passed_candidates():
+    """Get all passed candidates"""
+    passed_candidates = candidate_service.get_passed_candidates()
+    return jsonify(passed_candidates)
+
+@app.route('/api/modify-decision', methods=['POST'])
+def modify_decision():
+    """Modify an existing decision for a candidate"""
+    data = request.json
+    candidate_id = data.get('candidate_id')
+    new_decision = data.get('new_decision')  # 'save', 'pass', 'star', or 'unreviewed'
+    
+    if not candidate_id or not new_decision:
+        return jsonify({'success': False, 'message': 'Missing candidate_id or new_decision'}), 400
+    
+    valid_decisions = ['save', 'pass', 'star', 'unreviewed']
+    if new_decision not in valid_decisions:
+        return jsonify({'success': False, 'message': f'Invalid decision. Must be one of: {valid_decisions}'}), 400
+    
+    result = candidate_service.modify_decision(candidate_id, new_decision)
+    return jsonify(result)
+
 @app.route('/api/export', methods=['POST'])
 def export_candidates():
     """Export saved candidates to Excel file"""

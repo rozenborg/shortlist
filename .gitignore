@@ -1,6 +1,10 @@
 # Environment variables
 .env
 
+# User-specific data (do not commit to version control)
+candidates/
+data/
+
 # Python
 __pycache__/
 *.py[cod]

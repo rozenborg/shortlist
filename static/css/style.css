@@ -1255,4 +1255,209 @@ body {
 
 .relevant-achievements-list li:last-child {
     margin-bottom: 0;
+}
+
+/* Right Panel Tabs */
+.right-panel-tabs {
+    display: flex;
+    border-bottom: 1px solid #e9ecef;
+    margin: -25px -25px 15px -25px; /* negative margins to make tabs flush with container */
+}
+
+.right-tab {
+    background: none;
+    border: none;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6c757d;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+    flex: 1;
+    text-align: center;
+}
+
+.right-tab:hover {
+    color: #495057;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.right-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+
+
+.right-tab-count {
+    background: #667eea;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 11px;
+    margin-left: 4px;
+    min-width: 16px;
+    text-align: center;
+    display: inline-block;
+}
+
+.right-tab.active .right-tab-count {
+    background: #5a67d8;
+}
+
+.right-tab-content {
+    display: none;
+}
+
+.right-tab-content.active {
+    display: block;
+}
+
+/* Candidate Actions for Both Saved and Passed */
+.candidate-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.action-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Subtle purple outline buttons for right panel */
+.view-btn-subtle {
+    border: 1px solid #9f7aea;
+    color: #9f7aea;
+}
+
+.view-btn-subtle:hover {
+    background: #faf5ff;
+    border-color: #805ad5;
+    color: #805ad5;
+}
+
+.save-btn-subtle {
+    border: 1px solid #9f7aea;
+    color: #9f7aea;
+}
+
+.save-btn-subtle:hover {
+    background: #faf5ff;
+    border-color: #805ad5;
+    color: #805ad5;
+}
+
+.pass-btn-subtle {
+    border: 1px solid #9f7aea;
+    color: #9f7aea;
+}
+
+.pass-btn-subtle:hover {
+    background: #faf5ff;
+    border-color: #805ad5;
+    color: #805ad5;
+}
+
+/* Main Action Buttons (colorful rounded design) */
+.main-action-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.main-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.pass-main-btn {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+}
+
+.pass-main-btn:hover {
+    background: linear-gradient(135deg, #ff5252, #e53e3e);
+}
+
+.star-main-btn {
+    background: linear-gradient(135deg, #9f7aea, #805ad5);
+    color: white;
+}
+
+.star-main-btn:hover {
+    background: linear-gradient(135deg, #805ad5, #6b46c1);
+}
+
+.save-main-btn {
+    background: linear-gradient(135deg, #51cf66, #40c057);
+}
+
+.save-main-btn:hover {
+    background: linear-gradient(135deg, #40c057, #37b24d);
+}
+
+/* Update passed candidates container to match saved */
+.passed-candidates {
+    min-height: 100px;
+    padding: 10px 0;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .right-panel-tabs {
+        margin-bottom: 10px;
+    }
+    
+    .right-tab {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .right-tab-count {
+        font-size: 10px;
+        padding: 0px 4px;
+        margin-left: 2px;
+    }
+    
+    .candidate-actions {
+        gap: 6px;
+        margin-top: 6px;
+    }
+    
+    .action-btn {
+        padding: 3px 8px;
+        font-size: 11px;
+    }
+    
+    .main-action-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        min-width: 80px;
+    }
 } 
