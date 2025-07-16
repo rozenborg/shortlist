@@ -8,3 +8,4 @@ asyncio
 aiofiles
 concurrent.futures
 openpyxl 
+python-dotenv

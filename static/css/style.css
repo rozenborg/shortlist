@@ -1077,4 +1077,70 @@ body {
 
 .notification-warning {
     background: #f59e0b;
+}
+
+/* Work History Styles */
+.work-history-item {
+    margin-bottom: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.work-history-item:last-child {
+    border-bottom: none;
+}
+
+.job-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95em;
+    margin-bottom: 2px;
+}
+
+.company-name {
+    color: #666;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.job-years {
+    color: #888;
+    font-size: 0.85em;
+    margin-top: 2px;
+}
+
+.no-work-history {
+    color: #999;
+    font-style: italic;
+    margin: 0;
+}
+
+/* Modal Work History Styles */
+.modal-work-history-item {
+    margin-bottom: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.modal-work-history-item:last-child {
+    border-bottom: none;
+}
+
+.modal-job-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 1em;
+    margin-bottom: 4px;
+}
+
+.modal-company-name {
+    color: #666;
+    font-size: 0.95em;
+    font-style: italic;
+}
+
+.modal-job-years {
+    color: #888;
+    font-size: 0.9em;
+    margin-top: 4px;
 } 

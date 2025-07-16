@@ -63,6 +63,7 @@ class CandidateService:
         - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
         - "achievements": An array of 3-5 notable achievements from their career
         - "wildcard": A unique, interesting aspect about this candidate that stands out and likely wouldn't appear in many other resumes (e.g., unusual hobby, unique background, interesting side project, uncommon skill combination)
+        - "work_history": An array of the candidate's last 5 work experiences, each as an object with "title" (job title), "company" (company name), and "years" (approximate years worked there, e.g., "2020-2023" or "2019-Present"). Order from most recent to oldest.
         - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years. For this section, look through all the experience and carefully add up the years in each (can be 0)
 
         Job Description:
@@ -95,6 +96,9 @@ class CandidateService:
                 # Ensure experience_distribution is present and properly formatted
                 if 'experience_distribution' not in result:
                     result['experience_distribution'] = {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
+                # Ensure work_history is present
+                if 'work_history' not in result:
+                    result['work_history'] = []
                 return result
             except json.JSONDecodeError:
                 # Fallback: create structured response
@@ -105,6 +109,7 @@ class CandidateService:
                     "fit_indicators": ["Manual review needed"],
                     "achievements": ["Achievement extraction pending"],
                     "wildcard": "Manual review needed",
+                    "work_history": [],
                     "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
                 }
         except Exception as e:
@@ -155,6 +160,7 @@ class CandidateService:
                     'fit_indicators': ['Processing...'],
                     'achievements': ['Processing...'],
                     'wildcard': 'Processing...',
+                    'work_history': [],
                     'experience_distribution': {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0},
                     'processing': True
                 }

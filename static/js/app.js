@@ -197,6 +197,23 @@ function displayCard(candidate) {
         });
     }
     
+    // Add work history
+    const workHistoryList = card.querySelector('.work-history-list');
+    if (Array.isArray(candidate.work_history) && candidate.work_history.length > 0) {
+        candidate.work_history.forEach(job => {
+            const jobItem = document.createElement('div');
+            jobItem.className = 'work-history-item';
+            jobItem.innerHTML = `
+                <div class="job-title">${job.title || 'Title not available'}</div>
+                <div class="company-name">${job.company || 'Company not available'}</div>
+                ${job.years ? `<div class="job-years">${job.years}</div>` : ''}
+            `;
+            workHistoryList.appendChild(jobItem);
+        });
+    } else {
+        workHistoryList.innerHTML = '<p class="no-work-history">Work history not available</p>';
+    }
+    
     // Add wildcard
     const wildcardText = card.querySelector('.wildcard-text');
     wildcardText.textContent = candidate.wildcard || 'No wildcard information available';
@@ -631,6 +648,24 @@ function openCandidateModal(candidate) {
             li.textContent = achievement;
             achievementsList.appendChild(li);
         });
+    }
+    
+    // Populate work history
+    const workHistoryDiv = document.getElementById('modal-work-history');
+    workHistoryDiv.innerHTML = '';
+    if (Array.isArray(candidate.work_history) && candidate.work_history.length > 0) {
+        candidate.work_history.forEach(job => {
+            const jobItem = document.createElement('div');
+            jobItem.className = 'modal-work-history-item';
+            jobItem.innerHTML = `
+                <div class="modal-job-title">${job.title || 'Title not available'}</div>
+                <div class="modal-company-name">${job.company || 'Company not available'}</div>
+                ${job.years ? `<div class="modal-job-years">${job.years}</div>` : ''}
+            `;
+            workHistoryDiv.appendChild(jobItem);
+        });
+    } else {
+        workHistoryDiv.innerHTML = '<p style="color: #999; font-style: italic;">Work history not available</p>';
     }
     
     // Populate experience distribution
