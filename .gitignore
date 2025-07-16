@@ -2,8 +2,10 @@
 .env
 
 # User-specific data (do not commit to version control)
-candidates/
-data/
+candidates/*
+!candidates/README.md
+data/*
+!data/README.md
 
 # Python
 __pycache__/
