@@ -472,21 +472,104 @@ body {
     transition: all 0.3s ease-out;
 }
 
-/* Card Header */
-.card-header {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    margin: 0;
-    padding: 20px 30px;
+/* Card Header with Gradient */
+.candidate-card .card-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: 0;
 }
 
-.candidate-name {
-    font-size: 1.6rem;
+.candidate-card .candidate-name {
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
     font-weight: 600;
     color: white;
+}
+
+/* Differentiators in Header */
+.card-header .differentiators-list {
+    list-style: none;
+    padding: 0;
     margin: 0;
+}
+
+.card-header .differentiators-list li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+    color: white;
+    line-height: 1.4;
+}
+
+.card-header .differentiators-list li::before {
+    content: "⚡";
+    position: absolute;
+    left: 0;
+    top: 0.5rem;
+}
+
+/* Evidence items in header */
+.card-header .evidence-item.has-evidence {
+    cursor: help;
+    position: relative;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: rgba(255, 255, 255, 0.6);
+    text-underline-offset: 2px;
+}
+
+/* Remove old differentiators section styling */
+.differentiators-section {
+    display: none;
+}
+
+/* General evidence items and tooltips */
+.evidence-item.has-evidence {
+    cursor: help;
+    position: relative;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: #667eea;
+    text-underline-offset: 2px;
+}
+
+.evidence-tooltip {
+    position: absolute;
+    background: #2d3748;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    max-width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: none;
+    pointer-events: none;
+}
+
+.evidence-tooltip::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: 20px;
+    width: 10px;
+    height: 10px;
+    background: #2d3748;
+    transform: rotate(45deg);
+}
+
+/* Candidate card sections */
+.candidate-card .summary,
+.candidate-card .reservations,
+.candidate-card .fit-indicators,
+.candidate-card .achievements,
+.candidate-card .work-history,
+.candidate-card .wildcard,
+.candidate-card .experience-distribution {
+    margin-bottom: 1.5rem;
 }
 
 /* Card Content */
@@ -1143,4 +1226,33 @@ body {
     color: #888;
     font-size: 0.9em;
     margin-top: 4px;
+} 
+
+/* Relevant Achievements List */
+.relevant-achievements-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.relevant-achievements-list li {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.4;
+    font-size: 0.95rem;
+}
+
+.relevant-achievements-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #667eea;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.relevant-achievements-list li:last-child {
+    margin-bottom: 0;
 } 

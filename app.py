@@ -282,4 +282,4 @@ if __name__ == '__main__':
     print("Starting background processing...")
     background_processor.start_background_processing()
     
-    app.run(debug=True) 
+    app.run(debug=True, port=5001) 

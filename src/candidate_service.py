@@ -52,25 +52,43 @@ class CandidateService:
         prompt = f"""
         Analyze this resume based on the job description below. 
         
-        IMPORTANT: 
-        1. Generate a 2-3 word nickname for this candidate based on their profile (e.g., "Data Wizard", "Marketing Guru", "Full Stack Pro"). DO NOT use real names or any gender-specific terms.
-        2. Never reference gender in any part of your analysis.
+        CRITICAL INSTRUCTIONS:
+        1. DO NOT use generic phrases like "seasoned expert", "proven track record", "perfect fit", "strong background", or any statement that could apply to more than 30% of applicants
+        2. CITE EVIDENCE: For EVERY claim you make, include the EXACT VERBATIM quote from the resume that supports it. Do NOT paraphrase, summarize, or infer - copy the exact words.
+        3. START WITH DIFFERENTIATORS: Begin by identifying what makes this candidate DIFFERENT from typical applicants
+        4. If you cannot find a direct quote to support a claim, do NOT make that claim
+        5. SUBSTANTIVE ACHIEVEMENTS: Focus on achievements with concrete numbers, measurable impact, or significant scope (team size, budget, users affected, percentage improvements, etc.)
+        6. WORK HISTORY: Extract ALL work experiences from the resume (up to 5 maximum). Do NOT arbitrarily limit to 2-3 jobs when more are available.
         
         Return a JSON object with these exact keys:
-        - "nickname": A 2-3 word nickname based on their profile (no real names, no gender terms)
-        - "summary": A concise summary of the candidate's background and experience
-        - "reservations": An array of 2-3 potential concerns or gaps for this specific role
-        - "fit_indicators": An array of 3-4 reasons why they might be a good fit for this role
-        - "achievements": An array of 3-5 notable achievements from their career
-        - "wildcard": A unique, interesting aspect about this candidate that stands out and likely wouldn't appear in many other resumes (e.g., unusual hobby, unique background, interesting side project, uncommon skill combination)
-        - "work_history": An array of the candidate's last 5 work experiences, each as an object with "title" (job title), "company" (company name), and "years" (approximate years worked there, e.g., "2020-2023" or "2019-Present"). Order from most recent to oldest.
-        - "experience_distribution": An object with years of experience in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}} where each value is years. For this section, look through all the experience and carefully add up the years in each (can be 0)
+        
+        - "differentiators": An array of 3 things that make this candidate UNIQUE compared to typical applicants for this role. Each item should be an object with:
+          - "claim": The unique aspect (be specific, not generic, and CONCISE - avoid filler words like "effectively", "successfully", "efficiently")
+          - "evidence": The EXACT VERBATIM quote from the resume (copy word-for-word, no paraphrasing)
+        
+        - "nickname": A 2-3 word nickname based on their UNIQUE profile (e.g., "Quantum Researcher", "Startup Veteran", "Patent Holder"). NO generic terms like "Tech Expert"
+        
+        - "summary": A brief 2-3 line summary focusing on SPECIFIC experiences and achievements, not generic qualities
+        
+        - "reservations": An array of 2-3 SPECIFIC concerns or gaps for this specific role (focus on what's missing or lacking, no evidence quotes needed for gaps)
+        
+        - "relevant_achievements": An array of exactly 4 SUBSTANTIVE, QUANTIFIED achievements that directly relate to this role. Each should be an object with:
+          - "achievement": A specific, impactful accomplishment with numbers/metrics that shows capability for this role
+          - "evidence": The EXACT VERBATIM quote from resume (copy word-for-word)
+        
+        - "wildcard": An object with:
+          - "fact": A unique, interesting aspect that likely wouldn't appear in other resumes
+          - "evidence": The EXACT VERBATIM quote supporting this (copy word-for-word)
+        
+        - "work_history": An array of work experiences. IMPORTANT: Extract ALL available work experiences from the resume, up to a maximum of 5. If the resume shows 5+ jobs, include all 5. If it shows 4 jobs, include all 4. Do NOT limit to just 2-3 entries. Each should be an object with "title", "company", and "years". Order from most recent to oldest.
+        
+        - "experience_distribution": An object with years in different sectors: {{"corporate": X, "startup": Y, "nonprofit": Z, "government": W, "education": V, "other": U}}
 
         Job Description:
         {job_description if job_description else "Not provided."}
 
         Resume to analyze:
-        {resume_text[:3000]}...
+        {resume_text[:12000]}...
         """
         
         try:
@@ -87,40 +105,42 @@ class CandidateService:
                     clean_response = clean_response[:-3]
                 
                 result = json.loads(clean_response.strip())
-                # Ensure nickname is present
+                
+                # Ensure all required fields are present with proper structure
+                if 'differentiators' not in result:
+                    result['differentiators'] = []
                 if 'nickname' not in result:
                     result['nickname'] = 'Anonymous Pro'
-                # Ensure wildcard is present
-                if 'wildcard' not in result:
-                    result['wildcard'] = 'Unique profile details pending analysis'
-                # Ensure experience_distribution is present and properly formatted
+                if 'wildcard' not in result or not isinstance(result['wildcard'], dict):
+                    result['wildcard'] = {"fact": "Unique profile details pending analysis", "evidence": ""}
                 if 'experience_distribution' not in result:
                     result['experience_distribution'] = {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
-                # Ensure work_history is present
                 if 'work_history' not in result:
                     result['work_history'] = []
+                    
                 return result
             except json.JSONDecodeError:
                 # Fallback: create structured response
                 return {
+                    "differentiators": [],
                     "nickname": "Review Pending",
                     "summary": response[:200] + "...",
                     "reservations": ["Manual review needed"],
-                    "fit_indicators": ["Manual review needed"],
-                    "achievements": ["Achievement extraction pending"],
-                    "wildcard": "Manual review needed",
+                    "relevant_achievements": [],
+                    "wildcard": {"fact": "Manual review needed", "evidence": ""},
                     "work_history": [],
                     "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
                 }
         except Exception as e:
             print(f"Error generating summary: {e}")
             return {
+                "differentiators": [],
                 "nickname": "Processing Error",
                 "summary": "Error generating summary",
                 "reservations": ["Error in processing"],
-                "fit_indicators": ["Error in processing"],
-                "achievements": [],
-                "wildcard": "Error in processing",
+                "relevant_achievements": [],
+                "wildcard": {"fact": "Error in processing", "evidence": ""},
+                "work_history": [],
                 "experience_distribution": {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0}
             }
     
@@ -156,10 +176,10 @@ class CandidateService:
                     'nickname': 'Processing...',
                     'filename': resume['filename'],
                     'summary': 'Processing...',
+                    'differentiators': [],
                     'reservations': ['Processing...'],
-                    'fit_indicators': ['Processing...'],
-                    'achievements': ['Processing...'],
-                    'wildcard': 'Processing...',
+                    'relevant_achievements': [],
+                    'wildcard': {'fact': 'Processing...', 'evidence': ''},
                     'work_history': [],
                     'experience_distribution': {"corporate": 0, "startup": 0, "nonprofit": 0, "government": 0, "education": 0, "other": 0},
                     'processing': True

@@ -154,6 +154,9 @@ async function loadSavedCandidates() {
 
 // Display candidate card
 function displayCard(candidate) {
+    console.log('Displaying candidate:', candidate); // Debug log
+    console.log('Candidate differentiators:', candidate.differentiators); // Debug log
+    
     const container = document.getElementById('card-container');
     const template = document.getElementById('card-template');
     
@@ -165,35 +168,58 @@ function displayCard(candidate) {
     
     // Fill in candidate data
     card.querySelector('.candidate-name').textContent = candidate.name || candidate.nickname || 'Anonymous';
+    
+    // Add differentiators to the header section instead of creating separate section
+    const cardHeader = card.querySelector('.card-header');
+    console.log('Card header found:', !!cardHeader); // Debug log
+    console.log('Differentiators check:', candidate.differentiators, candidate.differentiators?.length); // Debug log
+    
+    if (candidate.differentiators && candidate.differentiators.length > 0) {
+        console.log('Adding differentiators to header with', candidate.differentiators.length, 'items'); // Debug log
+        const differentiatorsList = document.createElement('ul');
+        differentiatorsList.className = 'differentiators-list';
+        
+        candidate.differentiators.forEach(diff => {
+            console.log('Adding differentiator:', diff); // Debug log
+            const li = document.createElement('li');
+            li.className = 'evidence-item';
+            li.setAttribute('data-evidence', diff.evidence || '');
+            li.textContent = diff.claim || diff;
+            differentiatorsList.appendChild(li);
+        });
+        
+        cardHeader.appendChild(differentiatorsList);
+        console.log('Differentiators added to header'); // Debug log
+    } else {
+        console.log('No differentiators to display'); // Debug log
+    }
+    
     card.querySelector('.summary-text').textContent = candidate.summary || 'No summary available';
     
-    // Add reservations (black bullet points)
+    // Add reservations (no evidence for gaps)
     const reservationsList = card.querySelector('.reservations-list');
     if (Array.isArray(candidate.reservations)) {
         candidate.reservations.forEach(reservation => {
             const li = document.createElement('li');
+            // Reservations don't have evidence since they're about gaps/missing things
             li.textContent = reservation;
             reservationsList.appendChild(li);
         });
     }
     
-    // Add fit indicators
-    const fitIndicatorsList = card.querySelector('.fit-indicators-list');
-    if (Array.isArray(candidate.fit_indicators)) {
-        candidate.fit_indicators.forEach(indicator => {
+    // Add relevant achievements with evidence
+    const relevantAchievementsList = card.querySelector('.relevant-achievements-list');
+    if (Array.isArray(candidate.relevant_achievements)) {
+        candidate.relevant_achievements.forEach(achievement => {
             const li = document.createElement('li');
-            li.textContent = indicator;
-            fitIndicatorsList.appendChild(li);
-        });
-    }
-    
-    // Add achievements
-    const achievementsList = card.querySelector('.achievements-list');
-    if (Array.isArray(candidate.achievements)) {
-        candidate.achievements.forEach(achievement => {
-            const li = document.createElement('li');
-            li.textContent = achievement;
-            achievementsList.appendChild(li);
+            li.className = 'evidence-item';
+            if (typeof achievement === 'object') {
+                li.setAttribute('data-evidence', achievement.evidence || '');
+                li.textContent = achievement.achievement || achievement;
+            } else {
+                li.textContent = achievement;
+            }
+            relevantAchievementsList.appendChild(li);
         });
     }
     
@@ -216,7 +242,13 @@ function displayCard(candidate) {
     
     // Add wildcard
     const wildcardText = card.querySelector('.wildcard-text');
-    wildcardText.textContent = candidate.wildcard || 'No wildcard information available';
+    if (candidate.wildcard && typeof candidate.wildcard === 'object') {
+        wildcardText.className = 'wildcard-text evidence-item';
+        wildcardText.setAttribute('data-evidence', candidate.wildcard.evidence || '');
+        wildcardText.textContent = candidate.wildcard.fact || 'No wildcard information available';
+    } else {
+        wildcardText.textContent = candidate.wildcard || 'No wildcard information available';
+    }
     
     // Add experience distribution
     const experienceDistribution = card.querySelector('.experience-distribution');
@@ -243,6 +275,9 @@ function displayCard(candidate) {
     // Add to container
     container.appendChild(card);
     
+    // Setup evidence tooltips
+    setupEvidenceTooltips();
+    
     // Show action buttons when displaying cards
     const actionButtons = document.querySelector('.action-buttons');
     if (actionButtons) {
@@ -252,6 +287,50 @@ function displayCard(candidate) {
     
     // Setup drag functionality
     setupDragFunctionality();
+}
+
+// Setup evidence tooltips
+function setupEvidenceTooltips() {
+    // Create tooltip element if it doesn't exist
+    let tooltip = document.getElementById('evidence-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'evidence-tooltip';
+        tooltip.className = 'evidence-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    
+    // Add hover listeners to all evidence items
+    const evidenceItems = document.querySelectorAll('.evidence-item[data-evidence]');
+    evidenceItems.forEach(item => {
+        const evidence = item.getAttribute('data-evidence');
+        if (evidence && evidence.trim()) {
+            item.classList.add('has-evidence');
+            
+            item.addEventListener('mouseenter', (e) => {
+                tooltip.textContent = `"${evidence}"`;
+                tooltip.style.display = 'block';
+                
+                // Position tooltip near the cursor
+                const rect = item.getBoundingClientRect();
+                tooltip.style.left = rect.left + 'px';
+                tooltip.style.top = (rect.bottom + 5) + 'px';
+                
+                // Adjust if tooltip goes off screen
+                const tooltipRect = tooltip.getBoundingClientRect();
+                if (tooltipRect.right > window.innerWidth) {
+                    tooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
+                }
+                if (tooltipRect.bottom > window.innerHeight) {
+                    tooltip.style.top = (rect.top - tooltipRect.height - 5) + 'px';
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+        }
+    });
 }
 
 // Setup drag/swipe functionality
