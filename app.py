@@ -271,18 +271,27 @@ def parse_name_from_filename(filename):
     # Remove file extension
     name_part = os.path.splitext(filename)[0]
     
-    # Remove common patterns like "RESUME", numbers, etc.
     import re
-    # Remove patterns like "12345abc", "RESUME", etc.
-    name_part = re.sub(r'\s+\w*\d+\w*\s*RESUME.*$', '', name_part, flags=re.IGNORECASE)
-    name_part = re.sub(r'\s+RESUME.*$', '', name_part, flags=re.IGNORECASE)
+    # Pattern to match: "FirstName LastName(s) ID RESUME"
+    # This regex looks for the pattern where after the name, there's a space followed by 
+    # an ID (mix of letters/numbers) and then "RESUME"
+    # It preserves hyphenated last names like "Smith-Jones"
+    match = re.match(r'^(.+?)\s+[a-zA-Z0-9_-]+\s+RESUME.*$', name_part, re.IGNORECASE)
     
-    # Split by spaces
+    if match:
+        # Extract the name part before the ID
+        name_part = match.group(1).strip()
+    else:
+        # Fallback: just remove " RESUME" and anything after it
+        name_part = re.sub(r'\s+RESUME.*$', '', name_part, flags=re.IGNORECASE)
+    
+    # Split by spaces to get first and last name
     parts = name_part.strip().split()
     
     if len(parts) >= 2:
         first_name = parts[0]
-        last_name = ' '.join(parts[1:])  # Handle middle names
+        # Join all remaining parts as last name (handles middle names and hyphenated names)
+        last_name = ' '.join(parts[1:])
     elif len(parts) == 1:
         first_name = parts[0]
         last_name = ''

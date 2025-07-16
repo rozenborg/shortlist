@@ -9,6 +9,7 @@ let stats = {
 };
 let passedCandidates = [];
 let savedCandidates = [];
+let hasShownProcessingNotification = false;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -85,6 +86,7 @@ async function submitJobDescription() {
             // Reset processing tracking state
             window.wasProcessing = false;
             window.hasShownCompleted = false;
+            hasShownProcessingNotification = false;
             
             // Hide job description screen and show main content
             document.getElementById('job-description-screen').style.display = 'none';
@@ -129,8 +131,12 @@ async function loadCandidates() {
         
         // Check if any candidates are still processing
         const processingCount = candidates.filter(c => c.processing === true).length;
-        if (processingCount > 0) {
+        if (processingCount > 0 && !hasShownProcessingNotification) {
             showNotification(`${processingCount} candidates are still being analyzed. They'll update automatically when ready.`, 'info');
+            hasShownProcessingNotification = true;
+        } else if (processingCount === 0) {
+            // Reset flag when no candidates are processing
+            hasShownProcessingNotification = false;
         }
         
         if (candidates.length > 0) {
@@ -847,6 +853,7 @@ async function restartSession() {
         // Reset processing tracking state
         window.wasProcessing = false;
         window.hasShownCompleted = false;
+        hasShownProcessingNotification = false;
         
         // Set flag to show job description screen
         window.showJobDescriptionScreen = true;
@@ -906,6 +913,7 @@ async function updateProcessingStatus() {
         if (status.is_processing) {
             // Reset completion tracking when new processing starts
             window.hasShownCompleted = false;
+            // Don't reset hasShownProcessingNotification here - let it stay true during processing
             
             statusElement.textContent = 'Processing...';
             progressElement.textContent = `${status.processed_count}/${status.total_count} candidates (${Math.round(status.progress)}%)`;
@@ -945,6 +953,7 @@ async function updateProcessingStatus() {
         // If processing just completed
         if (!status.is_processing && window.wasProcessing) {
             window.wasProcessing = false;
+            hasShownProcessingNotification = false; // Reset for next processing session
             showNotification('All candidates have been analyzed with the updated job description!', 'success');
             loadCandidates();
         }
