@@ -169,8 +169,10 @@ def test_backend_export_directly():
                 
                 # Format experience distribution
                 exp_dist = candidate.get('experience_distribution', {})
-                exp_text = ', '.join([f"{sector.title()}: {years}y" 
-                                    for sector, years in exp_dist.items() if years > 0])
+                                exp_text = ', '.join([f"{sector.title()}: {years}y" 
+                                for sector, years in exp_dist.items() 
+                                if (isinstance(years, (int, float)) and years > 0) or 
+                                   (isinstance(years, str) and years.isdigit() and int(years) > 0)])
                 
                 # Starred status
                 starred = 'TRUE' if candidate.get('is_starred', False) else ''

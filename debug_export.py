@@ -118,7 +118,9 @@ def debug_export_function():
                 
                 if isinstance(exp_dist, dict):
                     exp_text = ', '.join([f"{sector.title()}: {years}y" 
-                                        for sector, years in exp_dist.items() if years > 0])
+                                        for sector, years in exp_dist.items() 
+                                        if (isinstance(years, (int, float)) and years > 0) or 
+                                           (isinstance(years, str) and years.isdigit() and int(years) > 0)])
                 else:
                     print(f"    ⚠️ Experience distribution is not a dict: {exp_dist}")
                     exp_text = str(exp_dist) if exp_dist else ''
