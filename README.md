@@ -12,34 +12,41 @@ Swipe is a modern, AI-powered resume screening and review application that makes
 ## Key Features
 
 ### 🎯 **Smart Resume Analysis**
-- AI-powered resume parsing and analysis
+- AI-powered resume parsing and analysis with enhanced error handling
 - Generates candidate summaries, skill assessments, and fit scores
-- Extracts key achievements and experience levels
-- Provides reasoning for candidate fit
+- Extracts key achievements and experience levels with wildcard insights
+- Provides reasoning for candidate fit with detailed reservations
 
 ### 📱 **Intuitive Swipe Interface** 
-- Swipe left to pass, right to save candidates
-- Keyboard shortcuts for desktop users
-- Modern, responsive web interface
-- Real-time statistics and progress tracking
+- **Three-tier decision system**: Swipe left to pass, right to save, or star for favorites
+- Keyboard shortcuts for desktop users (arrow keys, undo, restart)
+- Modern, responsive web interface with real-time updates
+- Live statistics and progress tracking with completion percentages
 
 ### ⚙️ **Customizable Screening**
-- Input your specific job description
+- Input your specific job description with instant re-analysis
 - Provide custom instructions for AI analysis
 - Tailored summaries based on your requirements
-- Re-analyze candidates when criteria change
+- Decision modification system - change your mind after review
 
-### ⚡ **Efficient Processing**
-- Batch processing for multiple resumes
-- Background processing to avoid delays
-- Caching system for faster subsequent reviews
-- Supports PDF, DOCX, and TXT resume formats
+### ⚡ **Enterprise-Grade Processing**
+- **Smart background processing** with real-time status updates
+- **Intelligent retry logic** with exponential backoff strategies
+- **Configurable timeouts** with auto-detection for reasoning models (GPT-o3, etc.)
+- **Batch processing** for multiple resumes with progress tracking
+- **Failed candidate management** with manual retry capabilities
 
-### 🔧 **Enterprise-Ready Architecture**
-- Extensible LLM adapter pattern
+### 🔧 **Advanced Candidate Management**
+- **Custom ordering** with drag-and-drop reordering of saved candidates
+- **Decision history tracking** with full audit trail
+- **Excel export** with formatted candidate data and rankings
+- **Real-time processing indicators** showing queue status and completion
+
+### 🏢 **Enterprise-Ready Architecture**
+- Extensible LLM adapter pattern with timeout optimization
 - Easy integration with different AI providers (OpenAI, internal APIs, etc.)
 - Clean separation between business logic and AI provider
-- Built for scalability and customization
+- Built for scalability with sophisticated error handling
 
 ## Quick Start
 
@@ -63,7 +70,7 @@ Swipe is a modern, AI-powered resume screening and review application that makes
 3. **Configure environment:**
    ```bash
    cp env.example .env
-   # Edit .env and add your OpenAI API key
+   # Edit .env and add your OpenAI API key and processing configuration
    ```
 
 4. **Add resume files:**
@@ -79,28 +86,58 @@ Swipe is a modern, AI-powered resume screening and review application that makes
    ```
 
 6. **Open your browser:**
-   Navigate to `http://localhost:5000`
+   Navigate to `http://localhost:5001`
 
-## Usage Guide
+## Enhanced Configuration
+
+### Environment Variables
+
+```bash
+# LLM Provider Configuration
+OPENAI_API_KEY=your-openai-key
+OPENAI_DEFAULT_MODEL=gpt-4o
+LLM_PROVIDER=openai
+
+# Advanced Processing Configuration
+RESUME_QUICK_TIMEOUT=60        # Timeout for standard models (seconds)
+RESUME_LONG_TIMEOUT=180        # Timeout for reasoning models (seconds)
+RESUME_MAX_RETRIES=3           # Maximum retry attempts before failure
+RESUME_BATCH_SIZE=1            # Candidates per batch (1 = sequential processing)
+```
+
+### Smart Timeout Detection
+The system automatically detects reasoning models (GPT-o3, etc.) and applies appropriate timeouts:
+- **Standard models** (GPT-4, GPT-4o): Use `RESUME_QUICK_TIMEOUT` (60s default)
+- **Reasoning models** (o3-mini, o3): Use `RESUME_LONG_TIMEOUT` (180s default)
+- **Batch processing**: Scales timeout based on batch size and resume length
+
+## Enhanced Usage Guide
 
 ### Setting Up Your Screening Process
 
 1. **Customize for Your Job:**
-   - Click "Customize" in the header
-   - Paste your job description
-   - Add specific instructions for AI analysis
-   - Save and let the system re-analyze candidates
+   - Enter or update job description on startup
+   - System automatically clears cache and re-analyzes all candidates
+   - Real-time processing status shows progress
 
-2. **Review Candidates:**
-   - Swipe right (→) or press right arrow to SAVE promising candidates
-   - Swipe left (←) or press left arrow to PASS on candidates
-   - View AI-generated summaries, skills, and fit scores
-   - Use the undo button if you make a mistake
+2. **Review Candidates with Enhanced Controls:**
+   - **Swipe right (→)** or press right arrow to **SAVE** promising candidates
+   - **Swipe left (←)** or press left arrow to **PASS** on candidates
+   - **Click the star (⭐)** to mark as **STARRED** favorites
+   - **Undo button** to reverse your last decision
+   - **Restart session** to clear all decisions and start over
 
-3. **Track Your Progress:**
-   - Monitor session statistics in the left panel
-   - View saved candidates in a separate list
-   - Export decisions for further review
+3. **Advanced Candidate Management:**
+   - **Modify decisions** after review (save → pass, pass → star, etc.)
+   - **Reorder saved candidates** with drag-and-drop
+   - **Export to Excel** with formatted candidate data
+   - **View processing statistics** and queue status
+
+4. **Real-time Processing Monitoring:**
+   - Live processing indicators show current status
+   - Queue visualization (processing, retry, failed)
+   - Completion percentages and estimated time remaining
+   - Failed candidate management with manual retry options
 
 ### File Organization
 
@@ -111,80 +148,206 @@ candidates/          # Place resume files here
 └── Mike Johnson 11111xyz RESUME.txt
 
 data/                # Application data (auto-generated)
-├── decisions.json   # Your swipe decisions
-├── summaries_cache.json  # AI analysis cache
+├── decisions.json   # Your swipe decisions with timestamps
+├── decision_history.json  # Full audit trail of decision changes
+├── summaries_cache.json  # AI analysis cache with retry tracking
 └── customization_settings.json  # Job description & instructions
 ```
 
-## Customization & Extension
+## Comprehensive API Reference
 
-### For Different Companies
+### Core Candidate Endpoints
 
-The application is designed to be easily customizable for different organizations:
+- `GET /api/candidates` - Get all candidates with processing status
+- `GET /api/candidates/ready` - Get only candidates ready for review
+- `GET /api/candidates/processing` - Get candidates currently being processed
+- `GET /api/candidates/newly-processed` - Get recently completed candidates
+- `GET /api/candidate/<id>` - Get specific candidate details
+- `POST /api/swipe` - Record swipe decision (save/pass/star)
 
-1. **Custom LLM Providers:**
-   - Implement the `BaseLLMClient` interface
-   - Add your adapter to the factory
-   - Update environment variables
+### Enhanced Decision Management
 
-2. **Custom Analysis Criteria:**
-   - Modify prompts in the candidate service
-   - Add new fields to the analysis output
-   - Customize the scoring algorithm
+- `GET /api/saved` - Get all saved and starred candidates
+- `POST /api/saved/reorder` - Update custom order of saved candidates
+- `GET /api/passed` - Get all passed candidates
+- `POST /api/modify-decision` - Change existing decision (save/pass/star/unreviewed)
+- `POST /api/undo` - Undo last swipe decision
+- `POST /api/restart` - Clear all decisions and restart session
 
-3. **Integration Options:**
-   - REST API endpoints for external systems
-   - Webhook support for decision notifications
-   - Export capabilities for ATS integration
+### Advanced Processing Control
 
-### Development Setup
-
-```bash
-# Development mode with auto-reload
-export FLASK_DEBUG=1
-python app.py
-
-# Run tests (if available)
-python -m pytest tests/
-
-# Process resumes in background
-curl -X POST http://localhost:5000/api/process/start
-```
-
-## API Reference
-
-### Main Endpoints
-
-- `GET /api/candidates` - Get all unreviewed candidates
-- `POST /api/swipe` - Record swipe decision
-- `GET /api/saved` - Get saved candidates
-- `POST /api/customize` - Update job description and instructions
 - `POST /api/process/start` - Start background processing
+- `GET /api/process/status` - Get detailed processing status
+- `GET /api/process/stats` - Get processing statistics and completion rates
+- `GET /api/process/config` - Get current processing configuration
+- `POST /api/process/config` - Update processing timeouts and batch size
+- `POST /api/process/batch` - Force process specific candidates immediately
+
+### Error Handling & Recovery
+
+- `GET /api/process/failed` - Get candidates that failed after max retries
+- `POST /api/process/retry/<id>` - Manually retry a failed candidate
+
+### Export & Reporting
+
+- `POST /api/export` - Export saved candidates to formatted Excel file
+
+### Job Description Management
+
+- `GET /api/job-description` - Check if job description exists
+- `POST /api/job-description` - Set/update job description (triggers re-analysis)
 
 ### Example API Usage
 
 ```python
 import requests
 
-# Get candidates
-response = requests.get('http://localhost:5000/api/candidates')
-candidates = response.json()
+# Get processing status
+response = requests.get('http://localhost:5001/api/process/status')
+status = response.json()
+print(f"Processing: {status['is_processing']}, Progress: {status['progress']:.1f}%")
 
-# Save a candidate
-requests.post('http://localhost:5000/api/swipe', json={
+# Star a candidate
+requests.post('http://localhost:5001/api/swipe', json={
     'candidate_id': 'john_doe_12345abc',
-    'decision': 'save'
+    'decision': 'star'
+})
+
+# Modify a decision
+requests.post('http://localhost:5001/api/modify-decision', json={
+    'candidate_id': 'jane_smith_67890def',
+    'new_decision': 'save'  # Change from pass to save
+})
+
+# Export saved candidates
+response = requests.post('http://localhost:5001/api/export')
+with open('candidates.xlsx', 'wb') as f:
+    f.write(response.content)
+```
+
+## Advanced Processing Architecture
+
+### Smart Retry Logic
+
+The system implements sophisticated error handling with multiple retry queues:
+
+- **Quick Retry Queue**: Network errors, API rate limits (30s - 2min backoff)
+- **Long Retry Queue**: Timeout errors, reasoning model delays (5min - 20min backoff)
+- **Failed Queue**: Max retries reached, requires manual intervention
+- **Processing Queue**: Currently active processing tasks
+
+### Intelligent Timeout Management
+
+- **Model Detection**: Automatically identifies reasoning models (o3, o3-mini)
+- **Dynamic Scaling**: Adjusts timeouts based on resume length and batch size
+- **Backoff Strategies**: Exponential backoff with jitter to prevent thundering herd
+
+### Real-time Processing Features
+
+- **Live Status Updates**: WebSocket-like polling for real-time UI updates
+- **Progress Tracking**: Detailed completion percentages and ETA calculations
+- **Queue Visualization**: See exactly what's processing, retrying, or failed
+- **Batch Optimization**: Configurable batch sizes for throughput optimization
+
+## Enterprise Features
+
+### Processing Configuration Management
+
+```python
+# Update processing configuration via API
+import requests
+
+requests.post('http://localhost:5001/api/process/config', json={
+    'quick_timeout': 90,      # Increase for slower networks
+    'long_timeout': 300,      # Increase for complex reasoning
+    'max_retries': 5,         # More retry attempts
+    'batch_size': 3           # Process 3 resumes at once
 })
 ```
 
+### Failed Candidate Recovery
+
+```python
+# Get failed candidates and retry them
+failed = requests.get('http://localhost:5001/api/process/failed').json()
+for candidate in failed:
+    print(f"Retrying {candidate['filename']}: {candidate['error']}")
+    requests.post(f'http://localhost:5001/api/process/retry/{candidate["id"]}')
+```
+
+### Audit Trail and Analytics
+
+- **Decision History**: Full audit trail of all decision changes
+- **Processing Metrics**: Success rates, retry statistics, timing data
+- **Session Analytics**: Review patterns, completion rates, decision distributions
+
 ## Technical Architecture
 
-- **Backend:** Flask web framework
-- **AI Integration:** Pluggable LLM adapter pattern
-- **Resume Parsing:** PyPDF2, python-docx for multiple formats
-- **Data Storage:** JSON files (easily replaceable with databases)
-- **Frontend:** Modern JavaScript with CSS Grid/Flexbox
-- **Processing:** Background threading for batch operations
+- **Backend:** Flask web framework with enhanced error handling
+- **Processing:** Multi-threaded background processing with intelligent retry logic
+- **AI Integration:** Pluggable LLM adapter pattern with timeout optimization
+- **Resume Parsing:** PyPDF2, python-docx with error recovery
+- **Data Storage:** JSON files with atomic writes and backup strategies
+- **Frontend:** Modern JavaScript with real-time updates and responsive design
+- **Export:** Excel generation with professional formatting and candidate rankings
+
+## Enhanced UI Features
+
+### Real-time Processing Indicators
+- **Live status updates** showing processing progress
+- **Queue visualization** with retry and failure states
+- **Completion percentages** with estimated time remaining
+- **New candidate notifications** when processing completes
+
+### Advanced Candidate Management
+- **Three-tier decisions**: Save, Pass, Star with visual indicators
+- **Drag-and-drop reordering** of saved candidates
+- **Decision modification** with change history
+- **Search and filtering** (coming soon)
+
+### Keyboard Shortcuts
+- **Arrow keys**: Left/Right for Pass/Save decisions
+- **Spacebar**: Star current candidate
+- **Escape**: Undo last decision
+- **R**: Restart session (with confirmation)
+
+## Troubleshooting
+
+### Common Processing Issues
+
+**Timeouts with Reasoning Models:**
+```bash
+# Increase timeout for o3 models
+RESUME_LONG_TIMEOUT=300
+OPENAI_DEFAULT_MODEL=o3-mini
+```
+
+**High Failure Rates:**
+```bash
+# Increase retry attempts and use smaller batches
+RESUME_MAX_RETRIES=5
+RESUME_BATCH_SIZE=1
+```
+
+**Slow Processing:**
+```bash
+# Enable batch processing for faster throughput
+RESUME_BATCH_SIZE=3
+RESUME_QUICK_TIMEOUT=120
+```
+
+### Debugging Failed Candidates
+
+1. Check `/api/process/failed` for error details
+2. Review logs for specific error patterns
+3. Use `/api/process/retry/<id>` for manual retries
+4. Adjust timeout settings based on error types
+
+### Performance Optimization
+
+- **Batch Size**: Increase for faster processing, decrease for stability
+- **Timeouts**: Balance between speed and success rates
+- **Retry Logic**: Configure based on your LLM provider's reliability
 
 ## Custom LLM Integration
 
@@ -609,10 +772,11 @@ This project is designed to be extended and customized. Key areas for contributi
 
 - Additional resume parsers (e.g., Word formats, OCR)
 - New LLM provider adapters
-- Enhanced UI components
+- Enhanced UI components with real-time features
 - Database backend options
-- Export/import functionality
-- Analytics and reporting features
+- Advanced export/import functionality
+- Analytics and reporting dashboards
+- Mobile app development
 
 ## License
 

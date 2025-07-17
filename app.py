@@ -18,13 +18,15 @@ from src.customization_service import CustomizationService
 app = Flask(__name__)
 CORS(app)
 
-# Initialize services
+# Initialize services with real-time processing and smart retry logic
 client = get_llm_client()
 llm_service = LLMService(client)
 resume_parser = ResumeParser()
 customization_service = CustomizationService()
 candidate_service = CandidateService(llm_service, resume_parser, customization_service)
 background_processor = BackgroundProcessor(candidate_service, resume_parser, llm_service)
+
+print("🚀 Resume processing with real-time updates and smart retry logic enabled")
 
 @app.route('/')
 def index():
@@ -83,6 +85,70 @@ def get_processing_status():
     """Get current processing status"""
     status = background_processor.get_status()
     return jsonify(status)
+
+@app.route('/api/process/stats', methods=['GET'])
+def get_processing_stats():
+    """Get detailed processing statistics"""
+    stats = candidate_service.get_processing_stats()
+    return jsonify(stats)
+
+@app.route('/api/candidates/ready', methods=['GET'])
+def get_ready_candidates():
+    """Get only candidates that are ready for review"""
+    candidates = candidate_service.get_ready_candidates()
+    return jsonify(candidates)
+
+@app.route('/api/candidates/processing', methods=['GET'])
+def get_processing_candidates():
+    """Get candidates currently being processed"""
+    candidates = candidate_service.get_processing_candidates()
+    return jsonify(candidates)
+
+@app.route('/api/candidates/newly-processed', methods=['GET'])
+def get_newly_processed_candidates():
+    """Get candidates that were recently processed (for real-time updates)"""
+    candidates = candidate_service.get_newly_processed_candidates(background_processor)
+    return jsonify(candidates)
+
+@app.route('/api/process/failed', methods=['GET'])
+def get_failed_candidates():
+    """Get candidates that failed processing after max retries"""
+    failed = background_processor.get_failed_candidates()
+    return jsonify(failed)
+
+@app.route('/api/process/retry/<candidate_id>', methods=['POST'])
+def retry_failed_candidate(candidate_id):
+    """Manually retry a failed candidate"""
+    success = background_processor.retry_failed_candidate(candidate_id)
+    return jsonify({'success': success})
+
+@app.route('/api/process/config', methods=['GET'])
+def get_processing_config():
+    """Get current processing configuration"""
+    status = background_processor.get_status()
+    return jsonify(status.get('config', {}))
+
+@app.route('/api/process/config', methods=['POST'])
+def update_processing_config():
+    """Update processing configuration"""
+    data = request.json
+    
+    # Update configuration in background processor
+    config_updates = {}
+    
+    if 'quick_timeout' in data:
+        config_updates['quick_timeout'] = int(data['quick_timeout'])
+    if 'long_timeout' in data:
+        config_updates['long_timeout'] = int(data['long_timeout'])
+    if 'max_retries' in data:
+        config_updates['max_retries'] = int(data['max_retries'])
+    if 'batch_size' in data:
+        config_updates['batch_size'] = int(data['batch_size'])
+    
+    # Apply configuration updates
+    background_processor.config.update(config_updates)
+    
+    return jsonify({'success': True, 'updated_config': config_updates})
 
 @app.route('/api/process/batch', methods=['POST'])
 def process_batch():
@@ -314,4 +380,4 @@ if __name__ == '__main__':
     print("Starting background processing...")
     background_processor.start_background_processing()
     
-    app.run(debug=True, port=5001) 
+    app.run(host='127.0.0.1', port=5001, debug=False) 

@@ -932,38 +932,63 @@ body {
 
 /* No More Cards */
 .no-more-cards {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
     text-align: center;
-    padding: 40px;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    color: #666;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    padding: 2rem;
+    max-width: 500px;
+    margin: 0 auto;
 }
 
 .no-more-cards h2 {
-    font-size: 2em;
-    margin-bottom: 15px;
+    margin-bottom: 1rem;
     color: #333;
 }
 
-.no-more-cards p {
-    color: #666;
-    margin-bottom: 25px;
-}
-
-.reset-button {
-    padding: 12px 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.no-more-cards button {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: #3498db;
     color: white;
     border: none;
-    border-radius: 25px;
-    font-size: 1em;
-    font-weight: 600;
+    border-radius: 5px;
     cursor: pointer;
-    transition: transform 0.3s ease;
+    transition: background 0.3s;
 }
 
-.reset-button:hover {
-    transform: translateY(-2px);
+.no-more-cards button:hover {
+    background: #2980b9;
+}
+
+/* Processing indicator styling */
+.processing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1rem;
+    color: #3498db;
+    font-weight: 500;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e3e3e3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Scrollbar Styling */
@@ -1366,6 +1391,17 @@ body {
 }
 
 .pass-btn-subtle:hover {
+    background: #faf5ff;
+    border-color: #805ad5;
+    color: #805ad5;
+}
+
+.star-btn-subtle {
+    border: 1px solid #9f7aea;
+    color: #9f7aea;
+}
+
+.star-btn-subtle:hover {
     background: #faf5ff;
     border-color: #805ad5;
     color: #805ad5;

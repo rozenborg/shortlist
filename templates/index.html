@@ -67,10 +67,6 @@
                         <span class="icon">⌨️</span>
                         <span>Use arrow keys</span>
                     </div>
-                    <div class="instruction-item">
-                        <span class="icon">🔘</span>
-                        <span>Or click buttons below</span>
-                    </div>
                 </div>
                 
                 <div class="stats">
@@ -90,6 +86,10 @@
                     <div class="stat-item">
                         <span class="stat-label">Passed:</span>
                         <span class="stat-value" id="passed-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Left to review:</span>
+                        <span class="stat-value" id="left-to-review-count">0</span>
                     </div>
                 </div>
                 
@@ -151,7 +151,7 @@
                     </div>
                     <div class="export-section">
                         <button class="export-btn" onclick="exportCandidates()">
-                            <span class="btn-icon">📊</span> Export to Excel
+                            <span class="btn-icon">📊</span> Export Shortlist
                         </button>
                     </div>
                 </div>

@@ -5,11 +5,18 @@ let stats = {
     reviewed: 0,
     saved: 0,
     starred: 0,
-    passed: 0
+    passed: 0,
+    leftToReview: 0
 };
 let passedCandidates = [];
 let savedCandidates = [];
 let hasShownProcessingNotification = false;
+
+// Real-time processing variables
+let realTimeUpdateInterval = null;
+let processingStatsInterval = null;
+let lastCandidateCount = 0;
+let newCandidatesAvailable = false;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -122,31 +129,205 @@ async function submitJobDescription() {
     }
 }
 
-// Load candidates from API
-async function loadCandidates() {
+// Load candidates from API with real-time support
+async function loadCandidates(preferReady = true) {
     try {
-        const response = await fetch('/api/candidates');
-        candidates = await response.json();
-        currentIndex = 0; // Reset index on load
+        // Prefer ready candidates by default for better user experience
+        let apiUrl = preferReady ? '/api/candidates/ready' : '/api/candidates';
+        
+        const response = await fetch(apiUrl);
+        const newCandidates = await response.json();
+        
+        // Check for newly available candidates
+        const readyCount = newCandidates.filter(c => c.ready_for_review !== false).length;
+        if (readyCount > lastCandidateCount && lastCandidateCount > 0) {
+            newCandidatesAvailable = true;
+            showNotification(`${readyCount - lastCandidateCount} new candidates are ready for review!`, 'success');
+        }
+        lastCandidateCount = readyCount;
+        
+        // Update candidates array efficiently
+        if (newCandidates.length === 0 && candidates.length === 0) {
+            // No candidates yet, start real-time updates
+            console.log('🔄 No candidates ready yet, starting real-time updates');
+            startRealTimeUpdates();
+        } else if (newCandidates.length > 0) {
+            // We have candidates - merge them properly
+            const previousLength = candidates.length;
+            candidates = mergeCandidates(candidates, newCandidates);
+            
+            // If we got new candidates and were showing "no more cards", refresh the display
+            if (candidates.length > previousLength && document.getElementById('no-more-cards').style.display !== 'none') {
+                console.log('📥 New candidates available, refreshing display');
+                if (currentIndex >= candidates.length) {
+                    currentIndex = 0;
+                }
+                displayCard(candidates[currentIndex]);
+                return;
+            }
+        }
+        
+        // Reset index if we're at the end and new candidates arrived
+        if (currentIndex >= candidates.length && candidates.length > 0) {
+            currentIndex = 0;
+        }
         
         // Check if any candidates are still processing
-        const processingCount = candidates.filter(c => c.processing === true).length;
+        const processingCount = candidates.filter(c => c.processing === true || c.ready_for_review === false).length;
         if (processingCount > 0 && !hasShownProcessingNotification) {
             showNotification(`${processingCount} candidates are still being analyzed. They'll update automatically when ready.`, 'info');
             hasShownProcessingNotification = true;
+            
+            // Start real-time updates if not already running
+            if (!realTimeUpdateInterval) {
+                startRealTimeUpdates();
+            }
         } else if (processingCount === 0) {
             // Reset flag when no candidates are processing
             hasShownProcessingNotification = false;
+            
+            // Stop real-time updates if no more processing
+            if (realTimeUpdateInterval) {
+                stopRealTimeUpdates();
+            }
         }
         
         if (candidates.length > 0) {
+            updateLeftToReviewCount();
             displayCard(candidates[currentIndex]);
         } else {
-            showNoMoreCards();
+            await showNoMoreCards();
         }
+        updateStats();
     } catch (error) {
         console.error('Error loading candidates:', error);
         alert('Error loading candidates. Please refresh the page.');
+    }
+}
+
+// Merge new candidates with existing ones, preserving position
+function mergeCandidates(existing, newCandidates) {
+    const existingIds = new Set(existing.map(c => c.id));
+    const merged = [...existing];
+    
+    // Add new candidates that we haven't seen before
+    for (const candidate of newCandidates) {
+        if (!existingIds.has(candidate.id)) {
+            // Insert ready candidates at the beginning, processing ones at the end
+            if (candidate.ready_for_review !== false) {
+                merged.unshift(candidate);
+            } else {
+                merged.push(candidate);
+            }
+        } else {
+            // Update existing candidate data
+            const index = merged.findIndex(c => c.id === candidate.id);
+            if (index !== -1) {
+                merged[index] = candidate;
+            }
+        }
+    }
+    
+    return merged;
+}
+
+// Start real-time updates for processing candidates
+function startRealTimeUpdates() {
+    if (realTimeUpdateInterval) return; // Already running
+    
+    console.log('🔄 Starting real-time candidate updates');
+    
+    realTimeUpdateInterval = setInterval(async () => {
+        try {
+            // Check for newly processed candidates
+            const response = await fetch('/api/candidates/newly-processed');
+            const newlyProcessed = await response.json();
+            
+            if (newlyProcessed.length > 0) {
+                console.log(`📥 ${newlyProcessed.length} new candidates processed`);
+                
+                // Add newly processed candidates to the front of the queue
+                for (const candidate of newlyProcessed.reverse()) {
+                    candidates.unshift(candidate);
+                }
+                
+                // Show notification
+                showNotification(`${newlyProcessed.length} new candidates ready for review!`, 'success');
+                
+                // If we're currently showing "no more cards", switch to showing the first candidate
+                const noMoreCardsElement = document.getElementById('no-more-cards');
+                if (noMoreCardsElement.style.display !== 'none') {
+                    console.log('🔄 Was showing no-more-cards, now displaying first candidate');
+                    currentIndex = 0;
+                    updateLeftToReviewCount();
+                    displayCard(candidates[currentIndex]);
+                } else if (currentIndex >= candidates.length - newlyProcessed.length) {
+                    // Update display if we're at the end
+                    updateLeftToReviewCount();
+                    displayCard(candidates[currentIndex]);
+                }
+                updateStats();
+            }
+            
+            // Also check for ready candidates from the regular endpoint
+            const readyResponse = await fetch('/api/candidates/ready');
+            const readyCandidates = await readyResponse.json();
+            
+            if (readyCandidates.length > candidates.length) {
+                console.log(`📥 Found ${readyCandidates.length - candidates.length} additional ready candidates`);
+                candidates = mergeCandidates(candidates, readyCandidates);
+                
+                // If we're showing no-more-cards, switch to showing candidates
+                const noMoreCardsElement = document.getElementById('no-more-cards');
+                if (noMoreCardsElement.style.display !== 'none' && candidates.length > 0) {
+                    console.log('🔄 Found ready candidates, switching from no-more-cards to candidate display');
+                    currentIndex = 0;
+                    displayCard(candidates[currentIndex]);
+                }
+            }
+            
+            // Update processing candidates
+            const processingResponse = await fetch('/api/candidates/processing');
+            const processingCandidates = await processingResponse.json();
+            
+            // Update processing count in UI
+            updateProcessingStatus(processingCandidates.length);
+            
+            // Stop updates if no more processing
+            if (processingCandidates.length === 0) {
+                console.log('⏹️ No more candidates processing, stopping real-time updates');
+                stopRealTimeUpdates();
+                
+                // If we're still showing the processing state, refresh it
+                const noMoreCardsElement = document.getElementById('no-more-cards');
+                if (noMoreCardsElement.style.display !== 'none' && noMoreCardsElement.innerHTML.includes('Analyzing Candidates')) {
+                    await showNoMoreCards();
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error in real-time update:', error);
+        }
+    }, 2000); // Check every 2 seconds for more responsiveness
+}
+
+// Stop real-time updates
+function stopRealTimeUpdates() {
+    if (realTimeUpdateInterval) {
+        clearInterval(realTimeUpdateInterval);
+        realTimeUpdateInterval = null;
+        console.log('⏹️ Stopped real-time candidate updates');
+    }
+}
+
+// Update processing status in UI
+function updateProcessingStatus(processingCount) {
+    const statusElement = document.querySelector('.processing-status');
+    if (statusElement && processingCount > 0) {
+        statusElement.textContent = `Processing ${processingCount} candidates...`;
+        statusElement.style.display = 'block';
+    } else if (statusElement) {
+        statusElement.style.display = 'none';
     }
 }
 
@@ -426,6 +607,7 @@ async function performSwipe(direction) {
     } else {
         stats.passed++;
     }
+    updateLeftToReviewCount();
     updateStats();
     
     // Send decision to server
@@ -474,11 +656,13 @@ async function performSwipe(direction) {
     // Move to next candidate
     setTimeout(() => {
         currentIndex++;
+        updateLeftToReviewCount();
         if (currentIndex < candidates.length) {
             displayCard(candidates[currentIndex]);
         } else {
             showNoMoreCards();
         }
+        updateStats();
     }, 300);
 }
 
@@ -515,12 +699,18 @@ function setupKeyboardControls() {
     });
 }
 
+// Update left to review count
+function updateLeftToReviewCount() {
+    stats.leftToReview = Math.max(0, candidates.length - currentIndex);
+}
+
 // Update stats display
 function updateStats() {
     document.getElementById('reviewed-count').textContent = stats.reviewed;
     document.getElementById('saved-count').textContent = stats.saved;
     document.getElementById('starred-count').textContent = stats.starred;
     document.getElementById('passed-count').textContent = stats.passed;
+    document.getElementById('left-to-review-count').textContent = stats.leftToReview;
 }
 
 // Display saved candidates
@@ -547,13 +737,22 @@ function displaySavedCandidates(saved) {
         const candidateName = candidate.name || candidate.nickname || 'Anonymous';
         const displayName = candidate.is_starred ? `⭐ ${candidateName}` : candidateName;
         
+        // Determine action text based on whether it was saved or starred
+        let actionText = 'Saved';
+        if (candidate.is_starred && candidate.is_saved) {
+            actionText = 'Saved & Starred';
+        } else if (candidate.is_starred) {
+            actionText = 'Starred';
+        }
+        
         cardDiv.innerHTML = `
             <div class="drag-handle">⋮⋮</div>
             <div class="saved-card-content">
                 <h4 class="saved-name">${displayName}</h4>
-                <div class="saved-experience">Saved ${formatTimestamp(candidate.saved_at)}</div>
+                <div class="saved-experience">${actionText} ${formatTimestamp(candidate.saved_at)}</div>
                 <div class="candidate-actions">
                     <button class="action-btn view-btn-subtle" onclick="viewCandidateFromPanel('${candidate.id}', 'saved')">View</button>
+                    <button class="action-btn star-btn-subtle" onclick="modifyDecision('${candidate.id}', '${candidate.is_starred ? 'save' : 'star'}')">${candidate.is_starred ? 'Unstar' : 'Star'}</button>
                     <button class="action-btn pass-btn-subtle" onclick="modifyDecision('${candidate.id}', 'pass')">Pass</button>
                 </div>
             </div>
@@ -808,15 +1007,70 @@ function closeCandidateModal() {
 }
 
 // Show no more cards message
-function showNoMoreCards() {
+async function showNoMoreCards() {
     const container = document.getElementById('card-container');
     container.innerHTML = '';
-    document.getElementById('no-more-cards').style.display = 'block';
     
     // Hide action buttons when no more cards
     const actionButtons = document.querySelector('.action-buttons');
     if (actionButtons) {
         actionButtons.style.display = 'none';
+    }
+    
+    // Determine what message to show based on current state
+    try {
+        // Check if we have any processing candidates
+        const processingResponse = await fetch('/api/candidates/processing');
+        const processingCandidates = await processingResponse.json();
+        
+        // Check total candidates we've seen
+        const hasReviewedCandidates = stats.reviewed > 0;
+        const isProcessing = processingCandidates.length > 0;
+        
+        const noMoreCardsElement = document.getElementById('no-more-cards');
+        
+        if (isProcessing) {
+            // Candidates are still being processed
+            noMoreCardsElement.innerHTML = `
+                <h2>Analyzing Candidates...</h2>
+                <p>We're analyzing ${processingCandidates.length} candidates. New ones will appear automatically when ready!</p>
+                <div class="processing-indicator">
+                    <div class="spinner"></div>
+                    <span>Processing in progress...</span>
+                </div>
+            `;
+            // Start real-time updates if not already running
+            if (!realTimeUpdateInterval) {
+                startRealTimeUpdates();
+            }
+        } else if (!hasReviewedCandidates && candidates.length === 0) {
+            // No candidates at all - initial state
+            noMoreCardsElement.innerHTML = `
+                <h2>Ready to Review Candidates</h2>
+                <p>Add candidate resumes to the candidates/ folder and refresh the page to start reviewing!</p>
+                <button onclick="window.location.reload()">Refresh</button>
+            `;
+        } else {
+            // Actually finished reviewing all candidates
+            noMoreCardsElement.innerHTML = `
+                <h2>No More Candidates</h2>
+                <p>You've reviewed all available candidates!</p>
+                <button onclick="window.location.reload()">Refresh</button>
+            `;
+        }
+        
+        noMoreCardsElement.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error determining no-more-cards state:', error);
+        // Fallback to original message
+        const noMoreCardsElement = document.getElementById('no-more-cards');
+        noMoreCardsElement.innerHTML = `
+            <h2>No More Candidates</h2>
+            <p>You've reviewed all available candidates!</p>
+            <button onclick="window.location.reload()">Refresh</button>
+        `;
+        noMoreCardsElement.style.display = 'block';
     }
 }
 
@@ -865,7 +1119,8 @@ async function restartSession() {
             reviewed: 0,
             saved: 0,
             starred: 0,
-            passed: 0
+            passed: 0,
+            leftToReview: 0
         };
         updateStats();
         
@@ -891,18 +1146,23 @@ async function resetDecisions() {
     window.location.reload();
 }
 
-// Processing status updates
+// Processing status updates with real-time features
 function startProcessingStatusUpdates() {
+    console.log('🚀 Starting real-time processing status updates');
     updateProcessingStatus();
-    
-    // Update every 2 seconds
-    setInterval(updateProcessingStatus, 2000);
+    setInterval(updateProcessingStatus, 3000);
 }
 
+// Processing status updates with real-time features  
 async function updateProcessingStatus() {
     try {
-        const response = await fetch('/api/process/status');
-        const status = await response.json();
+        // Try to get detailed processing stats first
+        const statsResponse = await fetch('/api/process/stats');
+        const stats = await statsResponse.json();
+        
+        // Get standard status for comparison
+        const statusResponse = await fetch('/api/process/status');
+        const status = await statusResponse.json();
         
         // Update status text
         const statusElement = document.getElementById('processing-status');
@@ -911,22 +1171,41 @@ async function updateProcessingStatus() {
         const progressFill = document.getElementById('progress-fill');
         
         if (status.is_processing) {
-            // Reset completion tracking when new processing starts
             window.hasShownCompleted = false;
-            // Don't reset hasShownProcessingNotification here - let it stay true during processing
             
             statusElement.textContent = 'Processing...';
             progressElement.textContent = `${status.processed_count}/${status.total_count} candidates (${Math.round(status.progress)}%)`;
             progressBar.style.display = 'block';
             progressFill.style.width = status.progress + '%';
+            
+            // Show retry queue information
+            if (status.retry_queues) {
+                const retryInfo = [];
+                if (status.retry_queues.quick_retry > 0) {
+                    retryInfo.push(`${status.retry_queues.quick_retry} quick retry`);
+                }
+                if (status.retry_queues.long_retry > 0) {
+                    retryInfo.push(`${status.retry_queues.long_retry} long retry`);
+                }
+                if (status.retry_queues.failed > 0) {
+                    retryInfo.push(`${status.retry_queues.failed} failed`);
+                }
+                
+                if (retryInfo.length > 0) {
+                    progressElement.textContent += ` | Retry: ${retryInfo.join(', ')}`;
+                }
+            }
         } else {
             if (status.status === 'completed' && !window.hasShownCompleted) {
-                // Only show "Completed" once per processing cycle
                 window.hasShownCompleted = true;
                 statusElement.textContent = 'Completed';
                 progressElement.textContent = 'All candidates analyzed';
                 
-                // After 3 seconds, change back to Idle
+                // Show failed candidates info if any
+                if (status.retry_queues && status.retry_queues.failed > 0) {
+                    showNotification(`Processing completed. ${status.retry_queues.failed} candidates failed after max retries.`, 'warning');
+                }
+                
                 setTimeout(() => {
                     statusElement.textContent = 'Idle';
                     progressElement.textContent = '';
@@ -935,7 +1214,6 @@ async function updateProcessingStatus() {
                 statusElement.textContent = 'Error';
                 progressElement.textContent = 'Processing failed';
             } else if (status.status === 'idle' || !window.hasShownCompleted) {
-                // Only set to Idle if we haven't already shown completed, or if server says idle
                 if (statusElement.textContent !== 'Completed') {
                     statusElement.textContent = 'Idle';
                     progressElement.textContent = '';
@@ -945,7 +1223,7 @@ async function updateProcessingStatus() {
             progressFill.style.width = '0%';
         }
         
-        // Track if we were previously processing
+        // Track processing state changes
         if (!window.wasProcessing) {
             window.wasProcessing = status.is_processing;
         }
@@ -953,17 +1231,47 @@ async function updateProcessingStatus() {
         // If processing just completed
         if (!status.is_processing && window.wasProcessing) {
             window.wasProcessing = false;
-            hasShownProcessingNotification = false; // Reset for next processing session
-            showNotification('All candidates have been analyzed with the updated job description!', 'success');
-            loadCandidates();
+            hasShownProcessingNotification = false;
+            showNotification('All candidates have been analyzed!', 'success');
         }
         
-        // If processing is complete and we have unprocessed candidates, refresh
-        if (status.status === 'completed' && hasUnprocessedCandidates()) {
-            loadCandidates();
+        // Show failed candidates info
+        try {
+            const failedResponse = await fetch('/api/process/failed');
+            const failedCandidates = await failedResponse.json();
+            
+            if (failedCandidates.length > 0) {
+                const failedElement = document.getElementById('failed-candidates-info');
+                if (failedElement) {
+                    failedElement.textContent = `${failedCandidates.length} candidates failed processing`;
+                    failedElement.style.display = 'block';
+                }
+            }
+        } catch (failedError) {
+            // Failed candidates info is optional
+            console.log('Failed candidates info not available');
         }
+        
     } catch (error) {
         console.error('Error updating processing status:', error);
+        // Fallback: try basic status update
+        try {
+            const response = await fetch('/api/process/status');
+            const status = await response.json();
+            
+            const statusElement = document.getElementById('processing-status');
+            const progressElement = document.getElementById('processing-progress');
+            
+            if (status.is_processing) {
+                statusElement.textContent = 'Processing...';
+                progressElement.textContent = `${status.processed_count}/${status.total_count} candidates`;
+            } else {
+                statusElement.textContent = status.status || 'Idle';
+                progressElement.textContent = '';
+            }
+        } catch (fallbackError) {
+            console.error('Fallback status update also failed:', fallbackError);
+        }
     }
 }
 
@@ -1124,6 +1432,9 @@ function displayPassedCandidatesInRightPanel(candidates) {
     const container = document.getElementById('passed-candidates');
     container.innerHTML = '';
     
+    // Store in global array for modal access
+    passedCandidates = candidates;
+    
     if (candidates.length === 0) {
         container.innerHTML = '<p class="empty-message">No passed candidates yet</p>';
         return;
@@ -1138,6 +1449,7 @@ function displayPassedCandidatesInRightPanel(candidates) {
                 <div class="saved-experience">Passed ${formatTimestamp(candidate.passed_at)}</div>
                 <div class="candidate-actions">
                     <button class="action-btn view-btn-subtle" onclick="viewCandidateFromPanel('${candidate.id}', 'passed')">View</button>
+                    <button class="action-btn star-btn-subtle" onclick="modifyDecision('${candidate.id}', 'star')">Star</button>
                     <button class="action-btn save-btn-subtle" onclick="modifyDecision('${candidate.id}', 'save')">Save</button>
                 </div>
             </div>
@@ -1169,7 +1481,14 @@ async function modifyDecision(candidateId, newDecision) {
             if (newDecision === 'unreviewed') {
                 message = 'Candidate moved back to review queue';
             } else if (newDecision === 'save') {
-                message = 'Candidate saved successfully';
+                // Check if this was an unstar action (old decision was star)
+                if (result.old_decision === 'star') {
+                    message = 'Candidate unstarred successfully';
+                } else {
+                    message = 'Candidate saved successfully';
+                }
+            } else if (newDecision === 'star') {
+                message = 'Candidate starred successfully';
             } else if (newDecision === 'pass') {
                 message = 'Candidate moved to passed list';
             }

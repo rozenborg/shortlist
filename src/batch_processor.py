@@ -24,6 +24,7 @@ class BatchProcessor:
         4. If you cannot find a direct quote to support a claim, do NOT make that claim
         5. SUBSTANTIVE ACHIEVEMENTS: Focus on achievements with concrete numbers, measurable impact, or significant scope (team size, budget, users affected, percentage improvements, etc.)
         6. WORK HISTORY: Extract ALL work experiences from the resume (up to 5 maximum). Do NOT arbitrarily limit to 2-3 jobs when more are available.
+        7. ANONYMITY: Keep candidates anonymous so the reviewer is only reviewing their experience. Do NOT reference their real name or gender.
         
         Return a JSON array, with each object containing these exact keys:
         
