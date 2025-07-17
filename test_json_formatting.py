@@ -153,6 +153,71 @@ Python, JavaScript, AWS, Docker, Kubernetes'''
                 print(f"    ❌ Recovery failed: {e}")
         
         print("\n" + "=" * 60)
+        
+        # Test 4: Anonymity Testing
+        print("🔍 Test 4: Anonymity Protection")
+        print("-" * 40)
+        
+        # Test anonymity with a resume that contains names
+        mock_resume_with_names = {
+            'id': 'john_doe_test',
+            'name': 'John Doe',
+            'filename': 'John Doe 12345 RESUME.pdf',
+            'text': '''John Doe
+Senior Software Engineer
+Email: john.doe@email.com
+
+EXPERIENCE:
+John led a team of 5 engineers at TechCorp. He managed the development of web applications.
+His achievements include improving system performance by 40% and managing a $2M budget.
+
+John also worked at StartupXYZ where he built microservices. He reduced deployment time significantly.
+
+EDUCATION:
+BS Computer Science, State University'''
+        }
+        
+        try:
+            print("  Processing resume with names...")
+            result = processor.process_single_resume(mock_resume_with_names, mock_settings)
+            
+            # Check for anonymity violations
+            anonymity_issues = []
+            text_to_check = [
+                result.get('summary', ''),
+                result.get('nickname', ''),
+            ]
+            
+            # Add differentiators and achievements text
+            for diff in result.get('differentiators', []):
+                if isinstance(diff, dict):
+                    text_to_check.append(diff.get('claim', ''))
+                    text_to_check.append(diff.get('evidence', ''))
+            
+            for achievement in result.get('relevant_achievements', []):
+                if isinstance(achievement, dict):
+                    text_to_check.append(achievement.get('achievement', ''))
+                    text_to_check.append(achievement.get('evidence', ''))
+            
+            # Check for name violations
+            for text in text_to_check:
+                if 'john' in text.lower() or 'doe' in text.lower():
+                    anonymity_issues.append(f"Name found in: {text[:50]}...")
+                if any(pronoun in text.lower() for pronoun in [' he ', ' his ', ' him ']):
+                    anonymity_issues.append(f"Gender pronoun found in: {text[:50]}...")
+            
+            if not anonymity_issues:
+                print("  ✅ Anonymity protection working correctly!")
+                print(f"  📝 Anonymous summary: {result.get('summary', '')[:100]}...")
+            else:
+                print("  ⚠️  Anonymity issues detected:")
+                for issue in anonymity_issues[:3]:  # Show first 3 issues
+                    print(f"    - {issue}")
+                
+        except Exception as e:
+            print(f"  ❌ Anonymity test failed: {e}")
+        
+        print("\n" + "=" * 60)
         print("🎯 RECOMMENDATIONS FOR YOUR CUSTOM ADAPTER:")
         print("-" * 40)
         print("1. Ensure your LLM returns ONLY JSON without markdown blocks")

@@ -25,7 +25,15 @@ class BatchProcessor:
         4. If you cannot find a direct quote to support a claim, do NOT make that claim
         5. SUBSTANTIVE ACHIEVEMENTS: Focus on achievements with concrete numbers, measurable impact, or significant scope (team size, budget, users affected, percentage improvements, etc.)
         6. WORK HISTORY: Extract ALL work experiences from the resume (up to 5 maximum). Do NOT arbitrarily limit to 2-3 jobs when more are available.
-        7. ANONYMITY: Keep candidates anonymous so the reviewer is only reviewing their experience. Do NOT reference their real name or gender.
+        
+        🚨 CRITICAL ANONYMITY REQUIREMENTS 🚨
+        - NEVER mention the candidate's real name, first name, last name, or any personal identifiers
+        - NEVER use pronouns that reveal gender (he/him, she/her) - use "they/them" or avoid pronouns entirely
+        - NEVER start summaries with names like "John is..." or "Sarah has..." 
+        - Use role-based descriptions: "This candidate...", "The applicant...", "This professional..."
+        - Keep the focus on skills, experience, and achievements - NOT personal identity
+        - Examples of GOOD openings: "Experienced software engineer with...", "Seasoned marketing professional who...", "Technical leader specializing in..."
+        - Examples of BAD openings: "John is a software engineer...", "Sarah brings 5 years...", "Michael has experience..."
         
         ⚠️  CRITICAL JSON FORMATTING REQUIREMENTS ⚠️
         - You MUST return ONLY a valid JSON array
@@ -125,6 +133,15 @@ class BatchProcessor:
         5. SUBSTANTIVE ACHIEVEMENTS: Focus on achievements with concrete numbers, measurable impact, or significant scope (team size, budget, users affected, percentage improvements, etc.)
         6. WORK HISTORY: Extract ALL work experiences from the resume (up to 5 maximum). Do NOT arbitrarily limit to 2-3 jobs when more are available.
         
+        🚨 CRITICAL ANONYMITY REQUIREMENTS 🚨
+        - NEVER mention the candidate's real name, first name, last name, or any personal identifiers
+        - NEVER use pronouns that reveal gender (he/him, she/her) - use "they/them" or avoid pronouns entirely
+        - NEVER start summaries with names like "John is..." or "Sarah has..." 
+        - Use role-based descriptions: "This candidate...", "The applicant...", "This professional..."
+        - Keep the focus on skills, experience, and achievements - NOT personal identity
+        - Examples of GOOD openings: "Experienced software engineer with...", "Seasoned marketing professional who...", "Technical leader specializing in..."
+        - Examples of BAD openings: "John is a software engineer...", "Sarah brings 5 years...", "Michael has experience..."
+        
         ⚠️  CRITICAL JSON FORMATTING REQUIREMENTS ⚠️
         - You MUST return ONLY a valid JSON object
         - Do NOT include any text before or after the JSON
@@ -206,6 +223,9 @@ class BatchProcessor:
                 
                 # Ensure all required fields are present with proper structure
                 result = self._validate_and_fix_result_structure(result)
+                
+                # NEW: Scrub any names that slipped through
+                result = self._scrub_personal_identifiers(result, resume_data)
                 
                 # NEW: Check if this is a quality response or just fallback data
                 response_quality = self._assess_response_quality(result, resume_data, raw_response)
@@ -304,6 +324,9 @@ class BatchProcessor:
             # Parse with enhanced validation
             result = self._parse_json_response(response)
             result = self._validate_and_fix_result_structure(result)
+            
+            # Scrub any names that slipped through
+            result = self._scrub_personal_identifiers(result, resume_data)
             
             # Validate quality again
             response_quality = self._assess_response_quality(result, resume_data, response)
@@ -473,6 +496,140 @@ class BatchProcessor:
             result['work_history'] = []
         
         return result
+    
+    def _scrub_personal_identifiers(self, result: Dict, resume_data: Dict) -> Dict:
+        """Remove personal identifiers (names, gender pronouns) from LLM response to ensure anonymity"""
+        # Extract candidate name from filename or resume data
+        candidate_names = self._extract_candidate_names(resume_data)
+        
+        # Fields to scrub
+        text_fields = ['summary', 'nickname']
+        
+        # Scrub main text fields
+        for field in text_fields:
+            if field in result and isinstance(result[field], str):
+                result[field] = self._scrub_text(result[field], candidate_names)
+        
+        # Scrub differentiators
+        if 'differentiators' in result and isinstance(result['differentiators'], list):
+            for diff in result['differentiators']:
+                if isinstance(diff, dict):
+                    if 'claim' in diff:
+                        diff['claim'] = self._scrub_text(diff['claim'], candidate_names)
+                    if 'evidence' in diff:
+                        diff['evidence'] = self._scrub_text(diff['evidence'], candidate_names)
+        
+        # Scrub achievements
+        if 'relevant_achievements' in result and isinstance(result['relevant_achievements'], list):
+            for achievement in result['relevant_achievements']:
+                if isinstance(achievement, dict):
+                    if 'achievement' in achievement:
+                        achievement['achievement'] = self._scrub_text(achievement['achievement'], candidate_names)
+                    if 'evidence' in achievement:
+                        achievement['evidence'] = self._scrub_text(achievement['evidence'], candidate_names)
+        
+        # Scrub wildcard
+        if 'wildcard' in result and isinstance(result['wildcard'], dict):
+            if 'fact' in result['wildcard']:
+                result['wildcard']['fact'] = self._scrub_text(result['wildcard']['fact'], candidate_names)
+            if 'evidence' in result['wildcard']:
+                result['wildcard']['evidence'] = self._scrub_text(result['wildcard']['evidence'], candidate_names)
+        
+        # Scrub reservations (might contain names in comparative statements)
+        if 'reservations' in result and isinstance(result['reservations'], list):
+            for i, reservation in enumerate(result['reservations']):
+                if isinstance(reservation, str):
+                    result['reservations'][i] = self._scrub_text(reservation, candidate_names)
+        
+        return result
+    
+    def _extract_candidate_names(self, resume_data: Dict) -> List[str]:
+        """Extract potential candidate names from filename and resume data"""
+        names = []
+        
+        # Extract from filename if available (via resume_data structure)
+        if 'filename' in resume_data:
+            # Use the ResumeParser's name extraction logic
+            filename = resume_data['filename']
+            match = re.match(r'^(.+?)\s+\w+\s+RESUME\.(pdf|docx|txt)$', filename, re.IGNORECASE)
+            if match:
+                full_name = match.group(1).strip()
+                # Split into parts and add variations
+                name_parts = full_name.split()
+                names.extend(name_parts)
+                names.append(full_name)  # Full name
+        
+        # Extract from resume_data if 'name' field exists
+        if 'name' in resume_data and resume_data['name'] != 'Unknown Candidate':
+            candidate_name = resume_data['name']
+            name_parts = candidate_name.split()
+            names.extend(name_parts)
+            names.append(candidate_name)
+        
+        # Extract common names from the beginning of resume text
+        resume_text = resume_data.get('text', '')
+        if resume_text:
+            # Look for name patterns at the beginning of the resume
+            lines = resume_text.split('\n')[:5]  # First 5 lines
+            for line in lines:
+                line = line.strip()
+                # Skip email, phone, address patterns
+                if any(pattern in line.lower() for pattern in ['@', 'phone', 'email', 'address', 'www', 'linkedin']):
+                    continue
+                # Look for potential names (2-3 words, capitalized, not too long)
+                words = line.split()
+                if 2 <= len(words) <= 3 and all(word.istitle() and word.isalpha() for word in words):
+                    names.extend(words)
+                    names.append(line)
+        
+        # Clean up and deduplicate
+        cleaned_names = []
+        for name in names:
+            # Skip single characters, common words, etc.
+            if len(name) > 1 and name.isalpha() and name not in ['Resume', 'CV', 'The', 'And', 'Or']:
+                cleaned_names.append(name)
+        
+        return list(set(cleaned_names))  # Remove duplicates
+    
+    def _scrub_text(self, text: str, candidate_names: List[str]) -> str:
+        """Scrub names and gender pronouns from a text string"""
+        if not text:
+            return text
+        
+        scrubbed = text
+        
+        # Remove candidate names (case insensitive)
+        for name in candidate_names:
+            if len(name) > 2:  # Only scrub names longer than 2 characters
+                # Replace standalone name mentions
+                pattern = r'\b' + re.escape(name) + r'\b'
+                scrubbed = re.sub(pattern, '[CANDIDATE]', scrubbed, flags=re.IGNORECASE)
+        
+        # Remove gender pronouns and replace with neutral alternatives
+        gender_replacements = {
+            r'\bhe\b': 'they',
+            r'\bhim\b': 'them', 
+            r'\bhis\b': 'their',
+            r'\bshe\b': 'they',
+            r'\bher\b': 'their',
+            r'\bhers\b': 'theirs',
+            r'\bHe\b': 'They',
+            r'\bHim\b': 'Them',
+            r'\bHis\b': 'Their', 
+            r'\bShe\b': 'They',
+            r'\bHer\b': 'Their',
+            r'\bHers\b': 'Theirs'
+        }
+        
+        for pattern, replacement in gender_replacements.items():
+            scrubbed = re.sub(pattern, replacement, scrubbed)
+        
+        # Clean up any leftover [CANDIDATE] references that start sentences awkwardly
+        scrubbed = re.sub(r'\[CANDIDATE\]\s+is\s+', 'This candidate is ', scrubbed, flags=re.IGNORECASE)
+        scrubbed = re.sub(r'\[CANDIDATE\]\s+has\s+', 'This candidate has ', scrubbed, flags=re.IGNORECASE)
+        scrubbed = re.sub(r'\[CANDIDATE\]\s+', 'The candidate ', scrubbed, flags=re.IGNORECASE)
+        
+        return scrubbed.strip()
     
     def _parse_fallback_response(self, response: str) -> Dict:
         """Parse non-JSON response as fallback with smart text extraction"""
