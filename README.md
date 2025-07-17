@@ -17,6 +17,12 @@ Swipe is a modern, AI-powered resume screening and review application that makes
 - Extracts key achievements and experience levels with wildcard insights
 - Provides reasoning for candidate fit with detailed reservations
 
+### 🔧 **🆕 Robust Data Persistence & Error Recovery**
+- **Fixed "Failed to Process" count** - Now accurately tracks and displays failed candidates
+- **Retry state persistence** - Failed resumes survive application restarts (no more data loss!)
+- **Comprehensive debugging tools** - Browser console functions and debug endpoints
+- **Automatic state recovery** - All retry queues, timestamps, and error details preserved
+
 ### 📱 **Intuitive Swipe Interface** 
 - **Three-tier decision system**: Swipe left to pass, right to save, or star for favorites
 - Keyboard shortcuts for desktop users (arrow keys, undo, restart)
@@ -152,7 +158,10 @@ data/                # Application data (auto-generated)
 ├── decisions.json   # Your swipe decisions with timestamps
 ├── decision_history.json  # Full audit trail of decision changes
 ├── summaries_cache.json  # AI analysis cache with retry tracking
+├── retry_state.json # 🆕 Retry queues & failed candidates (survives restarts)
 └── customization_settings.json  # Job description & instructions
+
+test_persistence.py  # 🆕 Standalone test for retry state persistence
 ```
 
 ## Comprehensive API Reference
@@ -189,6 +198,12 @@ data/                # Application data (auto-generated)
 - `GET /api/process/failed` - Get candidates that failed after max retries
 - `GET /api/process/format-issues` - **NEW!** Get candidates with formatting failures and quality scores
 - `POST /api/process/retry/<id>` - Manually retry a failed candidate
+
+### 🆕 **Debug & Persistence Endpoints**
+
+- `GET /api/debug/processing-state` - **NEW!** Complete processing pipeline state and resume accounting
+- `POST /api/debug/save-retry-state` - **NEW!** Manually save retry state to disk
+- `GET /api/debug/retry-state-file` - **NEW!** View retry state file contents
 
 ### Export & Reporting
 
@@ -384,6 +399,157 @@ RESUME_QUICK_TIMEOUT=120
 - **Batch Size**: Increase for faster processing, decrease for stability
 - **Timeouts**: Balance between speed and success rates
 - **Retry Logic**: Configure based on your LLM provider's reliability
+
+## 🔧 **🆕 Debugging & Data Persistence**
+
+### **Retry State Persistence**
+
+**NEW FEATURE:** Failed resumes and retry queues now survive application restarts, preventing permanent data loss.
+
+#### **What's Persisted:**
+- **Failed candidates** with error details and timestamps
+- **Retry queues** (quick, long, format, processing)
+- **Retry counts** and attempt history
+- **Backoff timestamps** for intelligent retry scheduling
+
+#### **Automatic Persistence:**
+- State saved after every retry queue modification
+- Automatic restoration on application startup
+- No manual intervention required
+
+#### **Persistence File Location:**
+```
+data/retry_state.json  # Contains all retry state data
+```
+
+### **Browser Console Debug Tools**
+
+Open your browser's developer console and use these debug functions:
+
+#### **Check Processing State:**
+```javascript
+// Get complete processing pipeline state
+debugProcessingState()
+
+// Test retry state persistence functionality
+testRetryStatePersistence()
+
+// Instructions for simulating failures (for testing)
+simulateFailedCandidate()
+```
+
+#### **Example Debug Output:**
+```
+=== PROCESSING STATE DEBUG ===
+Resume Breakdown: {
+  total_files: 123,
+  processed_successfully: 100,
+  failed_queue: 3,
+  quick_retry_queue: 2,
+  unaccounted_for: 0
+}
+💾 Persistence status: ✅ Working
+📁 Retry state file location: data/retry_state.json
+```
+
+### **Standalone Testing**
+
+#### **Test Retry State Persistence:**
+```bash
+# Run comprehensive persistence test
+python test_persistence.py
+```
+
+This test:
+1. Creates mock failed candidates
+2. Saves state to disk
+3. Creates new instance to test restoration
+4. Verifies data integrity
+5. Cleans up test data
+
+#### **Example Test Output:**
+```
+🧪 Testing Retry State Persistence...
+📁 Retry state file location: data/retry_state.json
+
+1️⃣ Initial State:
+   Failed queue: 0
+   Quick retry queue: 0
+
+2️⃣ Simulating Failed Candidates...
+   Added 1 failed candidate and 1 retry candidate
+
+3️⃣ Saving State to Disk...
+   ✅ State saved successfully
+
+4️⃣ Testing State Restoration...
+   Restored failed queue: 1
+   Restored quick retry queue: 1
+
+✅ PERSISTENCE TEST PASSED!
+   Failed candidates will survive application restart
+```
+
+### **Debug API Usage Examples**
+
+```python
+import requests
+
+# Check complete processing state
+response = requests.get('http://localhost:5001/api/debug/processing-state')
+state = response.json()
+
+print(f"Total files: {state['resume_breakdown']['total_files']}")
+print(f"Failed: {state['resume_breakdown']['failed_queue']}")
+print(f"Unaccounted: {state['resume_breakdown']['unaccounted_for']}")
+
+# View failed candidates with details
+failed = state['retry_queue_details']['failed']
+for candidate in failed:
+    print(f"Failed: {candidate['filename']} - {candidate['error']}")
+
+# Manually save retry state
+save_result = requests.post('http://localhost:5001/api/debug/save-retry-state')
+print(f"State saved to: {save_result.json()['file_path']}")
+
+# View retry state file contents
+file_contents = requests.get('http://localhost:5001/api/debug/retry-state-file')
+if file_contents.json()['file_exists']:
+    print("Retry state file exists and contains:")
+    print(f"- Failed candidates: {len(file_contents.json()['content']['retry_queues']['failed'])}")
+```
+
+### **Data Recovery Scenarios**
+
+#### **Scenario 1: Application Crash During Processing**
+```
+Before: Process 123 resumes → 20 fail → App crashes → ❌ 20 resumes lost forever
+After:  Process 123 resumes → 20 fail → App crashes → ✅ 20 resumes restored on restart
+```
+
+#### **Scenario 2: Planned Restart for Updates**
+```
+1. Check failed count: debugProcessingState()
+2. Note failed candidates before restart
+3. Restart application
+4. Run debugProcessingState() again
+5. Verify same failed count restored
+```
+
+#### **Scenario 3: Debug Missing Resumes**
+```javascript
+// If you processed 123 resumes but only see 100
+const state = await debugProcessingState();
+
+// Check where the missing 23 went:
+console.log('Failed:', state.resume_breakdown.failed_queue);
+console.log('In retry queues:', 
+  state.resume_breakdown.quick_retry_queue + 
+  state.resume_breakdown.long_retry_queue + 
+  state.resume_breakdown.format_retry_queue
+);
+console.log('Unaccounted:', state.resume_breakdown.unaccounted_for);
+```
 
 ## 🧪 **Testing Formatting Failure Detection**
 
