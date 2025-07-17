@@ -112,15 +112,46 @@ def get_newly_processed_candidates():
 
 @app.route('/api/process/failed', methods=['GET'])
 def get_failed_candidates():
-    """Get candidates that failed processing after max retries"""
+    """Get candidates that failed after max retries"""
     failed = background_processor.get_failed_candidates()
     return jsonify(failed)
+
+@app.route('/api/process/format-issues', methods=['GET'])
+def get_format_issues():
+    """Get candidates with formatting issues in retry queues"""
+    status = background_processor.get_status()
+    format_queue_size = status['retry_queues'].get('format_retry', 0)
+    
+    # Get detailed information about formatting issues
+    format_issues = []
+    for candidate in background_processor.retry_queues.get('format_retry', []):
+        last_response = candidate.get('_last_response', {})
+        quality_info = last_response.get('_quality_info', {})
+        
+        format_issues.append({
+            'id': candidate['id'],
+            'filename': candidate['filename'],
+            'name': candidate.get('name', 'Unknown'),
+            'retry_count': background_processor.retry_counts.get(candidate['id'], 0),
+            'quality_issues': quality_info.get('details', []),
+            'quality_score': quality_info.get('quality_score', 0),
+            'last_error': quality_info.get('reason', 'Unknown formatting issue')
+        })
+    
+    return jsonify({
+        'format_queue_size': format_queue_size,
+        'format_issues': format_issues
+    })
 
 @app.route('/api/process/retry/<candidate_id>', methods=['POST'])
 def retry_failed_candidate(candidate_id):
     """Manually retry a failed candidate"""
     success = background_processor.retry_failed_candidate(candidate_id)
-    return jsonify({'success': success})
+    
+    if success:
+        return jsonify({'success': True, 'message': f'Candidate {candidate_id} moved to retry queue'})
+    else:
+        return jsonify({'success': False, 'message': 'Candidate not found in failed queue'}), 404
 
 @app.route('/api/process/config', methods=['GET'])
 def get_processing_config():

@@ -29,6 +29,7 @@ class BackgroundProcessor:
         self.retry_queues = {
             'quick_retry': [],      # Network errors, quick retry with 30s timeout
             'long_retry': [],       # Timeout errors, retry with 3min timeout  
+            'format_retry': [],     # Formatting failures, retry with enhanced prompts
             'failed': [],           # Multiple failures, manual review needed
             'processing': []        # Currently being processed
         }
@@ -242,7 +243,21 @@ class BackgroundProcessor:
                 ready_long.append(candidate)
                 self.retry_queues['long_retry'].remove(candidate)
         
-        return ready_quick + ready_long
+        # Check format retry queue - shorter backoff since these are just formatting issues
+        ready_format = []
+        for candidate in self.retry_queues['format_retry']:
+            candidate_id = candidate['id']
+            last_retry = self.last_retry_time.get(candidate_id, datetime.min)
+            retry_count = self.retry_counts.get(candidate_id, 0)
+            
+            # Shorter backoff for formatting failures (30 seconds to 2 minutes)
+            wait_time = timedelta(seconds=30 * (self.config['backoff_base'] ** retry_count))
+            
+            if current_time - last_retry >= wait_time:
+                ready_format.append(candidate)
+                self.retry_queues['format_retry'].remove(candidate)
+        
+        return ready_quick + ready_long + ready_format
     
     def _process_batch_enhanced(self, batch, customization_settings):
         """Process a batch with enhanced error handling and real-time updates"""
@@ -295,9 +310,16 @@ class BackgroundProcessor:
                     
                     logger.info(f"✅ {candidate_id}: Successfully processed")
                 else:
-                    # Invalid result, add to retry
+                    # Invalid result - detect failure type
+                    failure_type = self._detect_failure_type(summary)
                     resume = next(r for r in batch if r['id'] == candidate_id)
-                    self._handle_processing_error(resume, "Invalid summary structure", 'invalid_result')
+                    
+                    if failure_type == 'formatting_failure':
+                        # Store the problematic response for retry with better formatting
+                        resume['_last_response'] = summary
+                        logger.warning(f"🔧 {candidate_id}: Formatting failure detected - will retry with enhanced formatting")
+                    
+                    self._handle_processing_error(resume, f"Invalid summary structure: {failure_type}", failure_type)
             
         except TimeoutError as e:
             # Handle timeout - move to appropriate retry queue
@@ -378,9 +400,66 @@ class BackgroundProcessor:
             raise Exception("Worker thread completed but no result was returned")
     
     def _is_valid_summary(self, summary):
-        """Validate that the summary has required fields"""
+        """Validate that the summary has required fields and is not a formatting failure"""
+        if not isinstance(summary, dict):
+            return False
+            
         required_keys = ['nickname', 'summary', 'reservations', 'relevant_achievements', 'wildcard']
-        return all(key in summary for key in required_keys)
+        has_required_keys = all(key in summary for key in required_keys)
+        
+        if not has_required_keys:
+            return False
+        
+        # Check for formatting failure marker
+        if summary.get('_formatting_failure', False):
+            return False
+            
+        # Additional quality checks
+        # Check for generic fallback content that indicates poor processing
+        if summary.get('nickname') in ['Review Pending', 'Processing Error', 'Formatting Issue']:
+            return False
+            
+        # Check if summary contains error indicators
+        summary_text = summary.get('summary', '')
+        if any(phrase in summary_text.lower() for phrase in [
+            'error occurred',
+            'processing issues',
+            'manual review due to',
+            'format was invalid'
+        ]):
+            return False
+            
+        return True
+    
+    def _detect_failure_type(self, summary):
+        """Detect if this is a formatting failure vs other types of failures"""
+        if not isinstance(summary, dict):
+            return 'invalid_result'
+            
+        # Check for explicit formatting failure marker
+        if summary.get('_formatting_failure', False):
+            return 'formatting_failure'
+            
+        # Check for formatting-related indicators
+        nickname = summary.get('nickname', '')
+        summary_text = summary.get('summary', '')
+        
+        formatting_indicators = [
+            'formatting issue',
+            'format was invalid',
+            'json parsing failed',
+            'response format',
+            'quality issues'
+        ]
+        
+        if any(indicator in nickname.lower() for indicator in formatting_indicators):
+            return 'formatting_failure'
+            
+        if any(indicator in summary_text.lower() for indicator in formatting_indicators):
+            return 'formatting_failure'
+            
+        # Default to invalid result for other quality issues
+        return 'invalid_result'
     
     def _handle_processing_error(self, resume, error, error_type):
         """Handle processing errors with smart retry logic"""
@@ -408,6 +487,9 @@ class BackgroundProcessor:
             if error_type == 'timeout':
                 self.retry_queues['long_retry'].append(resume)
                 logger.info(f"🔄 {candidate_id}: Added to long retry queue (timeout)")
+            elif error_type in ['formatting_failure', 'invalid_result']:
+                self.retry_queues['format_retry'].append(resume)
+                logger.info(f"🔄 {candidate_id}: Added to format retry queue ({error_type})")
             else:
                 self.retry_queues['quick_retry'].append(resume)
                 logger.info(f"🔄 {candidate_id}: Added to quick retry queue ({error_type})")
@@ -445,6 +527,7 @@ class BackgroundProcessor:
             "retry_queues": {
                 "quick_retry": len(self.retry_queues['quick_retry']),
                 "long_retry": len(self.retry_queues['long_retry']),
+                "format_retry": len(self.retry_queues['format_retry']),
                 "failed": len(self.retry_queues['failed']),
                 "processing": len(self.retry_queues['processing'])
             },
