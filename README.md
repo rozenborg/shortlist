@@ -160,8 +160,6 @@ data/                # Application data (auto-generated)
 ├── summaries_cache.json  # AI analysis cache with retry tracking
 ├── retry_state.json # 🆕 Retry queues & failed candidates (survives restarts)
 └── customization_settings.json  # Job description & instructions
-
-test_persistence.py  # 🆕 Standalone test for retry state persistence
 ```
 
 ## Comprehensive API Reference
@@ -452,43 +450,7 @@ Resume Breakdown: {
 📁 Retry state file location: data/retry_state.json
 ```
 
-### **Standalone Testing**
 
-#### **Test Retry State Persistence:**
-```bash
-# Run comprehensive persistence test
-python test_persistence.py
-```
-
-This test:
-1. Creates mock failed candidates
-2. Saves state to disk
-3. Creates new instance to test restoration
-4. Verifies data integrity
-5. Cleans up test data
-
-#### **Example Test Output:**
-```
-🧪 Testing Retry State Persistence...
-📁 Retry state file location: data/retry_state.json
-
-1️⃣ Initial State:
-   Failed queue: 0
-   Quick retry queue: 0
-
-2️⃣ Simulating Failed Candidates...
-   Added 1 failed candidate and 1 retry candidate
-
-3️⃣ Saving State to Disk...
-   ✅ State saved successfully
-
-4️⃣ Testing State Restoration...
-   Restored failed queue: 1
-   Restored quick retry queue: 1
-
-✅ PERSISTENCE TEST PASSED!
-   Failed candidates will survive application restart
-```
 
 ### **Debug API Usage Examples**
 
@@ -551,51 +513,7 @@ console.log('In retry queues:',
 console.log('Unaccounted:', state.resume_breakdown.unaccounted_for);
 ```
 
-## 🧪 **Testing Formatting Failure Detection**
 
-### **NEW!** Test Script for Custom LLM Adapters
-
-The system now includes a comprehensive test script to validate your custom LLM adapter's JSON formatting performance:
-
-```bash
-# Test your custom adapter's formatting capabilities
-python test_json_formatting.py
-```
-
-#### **What the Test Script Validates:**
-1. **Basic JSON Response**: Tests simple JSON structure compliance
-2. **Full Resume Analysis**: Tests complete candidate processing pipeline
-3. **Malformed Response Recovery**: Tests the 5-strategy parsing system
-4. **Quality Assessment**: Validates response quality scoring
-
-#### **Example Test Output:**
-```
-🧪 Testing JSON Formatting with Custom LLM Adapter
-============================================================
-✅ LLM Client: YourCompanyAdapter
-✅ Using Provider: your_company
-
-🔍 Test 1: Basic JSON Response
-----------------------------------------
-⏱️  Response time: 2.34s
-📝 Raw response (first 200 chars): {"nickname": "Test Candidate"...
-✅ JSON parsing successful!
-📊 Parsed keys: ['nickname', 'summary', 'reservations']
-
-🔍 Test 2: Full Resume Analysis Format
-----------------------------------------
-⏱️  Processing time: 4.12s
-✅ Processing completed successfully!
-📊 Differentiators: 3 found
-📊 Achievements: 4 found
-📊 Work History: 2 positions
-
-🎯 RECOMMENDATIONS FOR YOUR CUSTOM ADAPTER:
-1. Ensure your LLM returns ONLY JSON without markdown blocks
-2. Test with various resume lengths and complexity
-3. Monitor response times - aim for under 30 seconds
-4. Check for consistent field structure in responses
-```
 
 ### **Monitoring Formatting Issues in Production**
 
