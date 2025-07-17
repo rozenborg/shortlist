@@ -25,6 +25,10 @@ class BackgroundProcessor:
         self.total_count = 0
         self.status = "idle"
         
+        # Retry state persistence
+        self.data_folder = 'data'
+        self.retry_state_file = os.path.join(self.data_folder, 'retry_state.json')
+        
         # Enhanced retry and error handling
         self.retry_queues = {
             'quick_retry': [],      # Network errors, quick retry with 30s timeout
@@ -47,13 +51,78 @@ class BackgroundProcessor:
             'real_time_interval': 2,    # Seconds between real-time updates
         }
         
-        # Load configuration from environment or file
+        # Load configuration and retry state
         self._load_config()
+        self._load_retry_state()
         
         # Real-time processing tracking
         self.newly_processed = []   # Candidates processed since last UI update
         self.processing_lock = threading.Lock()
-        
+    
+    def _load_retry_state(self):
+        """Load retry queues and tracking data from disk"""
+        try:
+            if os.path.exists(self.retry_state_file):
+                with open(self.retry_state_file, 'r') as f:
+                    state_data = json.load(f)
+                
+                # Restore retry queues
+                if 'retry_queues' in state_data:
+                    self.retry_queues.update(state_data['retry_queues'])
+                
+                # Restore retry counts
+                if 'retry_counts' in state_data:
+                    self.retry_counts = state_data['retry_counts']
+                
+                # Restore last retry times (convert ISO strings back to datetime objects)
+                if 'last_retry_time' in state_data:
+                    self.last_retry_time = {}
+                    for candidate_id, iso_time in state_data['last_retry_time'].items():
+                        try:
+                            self.last_retry_time[candidate_id] = datetime.fromisoformat(iso_time)
+                        except ValueError:
+                            # Skip invalid timestamps
+                            pass
+                
+                failed_count = len(self.retry_queues.get('failed', []))
+                if failed_count > 0:
+                    logger.info(f"🔄 Restored retry state: {failed_count} failed candidates, "
+                               f"{len(self.retry_queues.get('quick_retry', []))} quick retry, "
+                               f"{len(self.retry_queues.get('long_retry', []))} long retry, "
+                               f"{len(self.retry_queues.get('format_retry', []))} format retry")
+                else:
+                    logger.info("🔄 Restored retry state: No previous failures")
+                    
+        except Exception as e:
+            logger.warning(f"Failed to load retry state: {e}")
+            logger.info("Starting with clean retry state")
+    
+    def _save_retry_state(self):
+        """Save retry queues and tracking data to disk"""
+        try:
+            os.makedirs(self.data_folder, exist_ok=True)
+            
+            # Convert datetime objects to ISO strings for JSON serialization
+            last_retry_time_serializable = {}
+            for candidate_id, dt in self.last_retry_time.items():
+                if isinstance(dt, datetime):
+                    last_retry_time_serializable[candidate_id] = dt.isoformat()
+                else:
+                    last_retry_time_serializable[candidate_id] = dt
+            
+            state_data = {
+                'retry_queues': self.retry_queues,
+                'retry_counts': self.retry_counts,
+                'last_retry_time': last_retry_time_serializable,
+                'saved_at': datetime.now().isoformat()
+            }
+            
+            with open(self.retry_state_file, 'w') as f:
+                json.dump(state_data, f, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Failed to save retry state: {e}")
+    
     def _load_config(self):
         """Load configuration from environment variables"""
         # Processing timeouts
@@ -257,6 +326,10 @@ class BackgroundProcessor:
                 ready_format.append(candidate)
                 self.retry_queues['format_retry'].remove(candidate)
         
+        # Save retry state if any candidates were moved
+        if ready_quick or ready_long or ready_format:
+            self._save_retry_state()
+        
         return ready_quick + ready_long + ready_format
     
     def _process_batch_enhanced(self, batch, customization_settings):
@@ -282,6 +355,7 @@ class BackgroundProcessor:
                 logger.error(f"Error reading resume {resume['filename']}: {e}")
                 failed_to_read.append(resume)
                 self._handle_processing_error(resume, e, 'file_read_error')
+                # Note: _handle_processing_error already calls _save_retry_state()
         
         if not resumes_data:
             return
@@ -321,17 +395,22 @@ class BackgroundProcessor:
                     
                     self._handle_processing_error(resume, f"Invalid summary structure: {failure_type}", failure_type)
             
+            # Save retry state after processing batch (candidates were removed from processing queue)
+            self._save_retry_state()
+            
         except TimeoutError as e:
             # Handle timeout - move to appropriate retry queue
             for resume_data in resumes_data:
                 resume = next(r for r in batch if r['id'] == resume_data['id'])
                 self._handle_processing_error(resume, e, 'timeout')
+            # Note: _handle_processing_error already calls _save_retry_state()
                 
         except Exception as e:
             # Handle other processing errors
             for resume_data in resumes_data:
                 resume = next(r for r in batch if r['id'] == resume_data['id'])
                 self._handle_processing_error(resume, e, 'processing_error')
+            # Note: _handle_processing_error already calls _save_retry_state()
     
     def _get_timeout_for_batch(self, resumes_data):
         """Determine appropriate timeout based on batch size and model"""
@@ -498,6 +577,9 @@ class BackgroundProcessor:
             # Update retry tracking
             self.retry_counts[candidate_id] = retry_count + 1
             self.last_retry_time[candidate_id] = datetime.now()
+        
+        # Save retry state after any queue modification
+        self._save_retry_state()
     
     def _process_retry_queues(self, customization_settings):
         """Process any remaining items in retry queues"""
@@ -560,6 +642,9 @@ class BackgroundProcessor:
             self.retry_queues['failed'].remove(failed_candidate)
             self.retry_queues['quick_retry'].append(failed_candidate)
             logger.info(f"🔄 Manually retrying {candidate_id}")
+            
+            # Save retry state after manual retry
+            self._save_retry_state()
             return True
         
         return False

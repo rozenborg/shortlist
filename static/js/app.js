@@ -1681,3 +1681,51 @@ window.debugProcessingState = async function() {
         return null;
     }
 };
+
+// Debug function to test retry state persistence
+window.testRetryStatePersistence = async function() {
+    try {
+        console.log('=== TESTING RETRY STATE PERSISTENCE ===');
+        
+        // First, get current processing state
+        const currentState = await fetch('/api/debug/processing-state').then(r => r.json());
+        console.log('Current Processing State:', currentState);
+        
+        // Check if retry state file exists and view contents
+        const retryFileState = await fetch('/api/debug/retry-state-file').then(r => r.json());
+        console.log('Retry State File:', retryFileState);
+        
+        // Manually save retry state
+        const saveResult = await fetch('/api/debug/save-retry-state', { method: 'POST' }).then(r => r.json());
+        console.log('Manual Save Result:', saveResult);
+        
+        // Check file contents again after save
+        const retryFileStateAfter = await fetch('/api/debug/retry-state-file').then(r => r.json());
+        console.log('Retry State File After Save:', retryFileStateAfter);
+        
+        console.log('=== PERSISTENCE TEST COMPLETE ===');
+        console.log('📁 Retry state file location:', saveResult.file_path);
+        console.log('🔢 Failed candidates count:', currentState.resume_breakdown?.failed_queue || 0);
+        console.log('💾 Persistence status:', retryFileStateAfter.file_exists ? '✅ Working' : '❌ Not working');
+        
+        return {
+            currentState,
+            retryFileState: retryFileStateAfter,
+            persistenceWorking: retryFileStateAfter.file_exists
+        };
+        
+    } catch (error) {
+        console.error('Persistence test failed:', error);
+        return { error: error.message };
+    }
+};
+
+// Debug function to simulate failed candidates for testing
+window.simulateFailedCandidate = function() {
+    console.log('⚠️ This is a debug function to simulate failed candidates.');
+    console.log('To actually test persistence:');
+    console.log('1. Process some resumes that might fail (timeout/format issues)');
+    console.log('2. Run testRetryStatePersistence() to check current state');
+    console.log('3. Restart the application');
+    console.log('4. Run testRetryStatePersistence() again to verify restoration');
+};

@@ -14,6 +14,7 @@ from src.resume_parser import ResumeParser
 from src.candidate_service import CandidateService
 from src.background_processor import BackgroundProcessor
 from src.customization_service import CustomizationService
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -523,6 +524,47 @@ def debug_processing_state():
         
     except Exception as e:
         return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
+
+@app.route('/api/debug/save-retry-state', methods=['POST'])
+def debug_save_retry_state():
+    """Debug endpoint to manually save retry state"""
+    try:
+        background_processor._save_retry_state()
+        return jsonify({
+            'success': True,
+            'message': 'Retry state saved successfully',
+            'file_path': background_processor.retry_state_file,
+            'saved_at': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug/retry-state-file', methods=['GET'])
+def debug_retry_state_file():
+    """Debug endpoint to view the retry state file contents"""
+    try:
+        import json as json_module
+        if os.path.exists(background_processor.retry_state_file):
+            with open(background_processor.retry_state_file, 'r') as f:
+                state_data = json_module.load(f)
+            return jsonify({
+                'file_exists': True,
+                'file_path': background_processor.retry_state_file,
+                'content': state_data
+            })
+        else:
+            return jsonify({
+                'file_exists': False,
+                'file_path': background_processor.retry_state_file,
+                'message': 'Retry state file does not exist yet'
+            })
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to read retry state file: {str(e)}'
+        }), 500
 
 def parse_name_from_filename(filename):
     """Parse first and last name from resume filename"""
