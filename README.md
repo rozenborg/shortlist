@@ -32,6 +32,7 @@ Swipe is a modern, AI-powered resume screening and review application that makes
 ### ⚡ **Enterprise-Grade Processing**
 - **Smart background processing** with real-time status updates
 - **Intelligent retry logic** with exponential backoff strategies
+- **🆕 Formatting failure detection** - automatically detects and retries LLM formatting issues
 - **Configurable timeouts** with auto-detection for reasoning models (GPT-o3, etc.)
 - **Batch processing** for multiple resumes with progress tracking
 - **Failed candidate management** with manual retry capabilities
@@ -186,6 +187,7 @@ data/                # Application data (auto-generated)
 ### Error Handling & Recovery
 
 - `GET /api/process/failed` - Get candidates that failed after max retries
+- `GET /api/process/format-issues` - **NEW!** Get candidates with formatting failures and quality scores
 - `POST /api/process/retry/<id>` - Manually retry a failed candidate
 
 ### Export & Reporting
@@ -233,8 +235,42 @@ The system implements sophisticated error handling with multiple retry queues:
 
 - **Quick Retry Queue**: Network errors, API rate limits (30s - 2min backoff)
 - **Long Retry Queue**: Timeout errors, reasoning model delays (5min - 20min backoff)
+- **Format Retry Queue**: **NEW!** LLM response formatting failures (30s - 2min backoff)
 - **Failed Queue**: Max retries reached, requires manual intervention
 - **Processing Queue**: Currently active processing tasks
+
+### 🆕 **Intelligent Formatting Failure Detection**
+
+**NEW FEATURE:** The system now automatically detects when the LLM API succeeds but returns improperly formatted responses that can't be parsed into candidate cards.
+
+#### **What It Detects:**
+- **JSON Parsing Failures**: Response contains content but isn't valid JSON
+- **Quality Issues**: Generic fallback content, missing required fields
+- **Format Artifacts**: Markdown blocks, explanatory text, formatting errors
+- **Content Mismatch**: Response too short/generic for resume length
+
+#### **How It Works:**
+1. **LLM Response Quality Assessment**: Each response gets a quality score (0-10)
+2. **Automatic Classification**: Differentiates formatting failures from API failures
+3. **Fast Recovery**: Formatting issues retry in 30 seconds (vs. minutes for API failures)
+4. **Enhanced Retry Prompts**: Uses ultra-specific JSON formatting instructions
+
+#### **Benefits for Custom LLM Adapters:**
+- **Faster Recovery**: No waiting for long API failure backoffs
+- **Better Success Rates**: Targeted retry strategies for formatting issues
+- **Detailed Diagnostics**: Specific quality issues identified for optimization
+- **Intelligent Routing**: API vs. formatting problems handled separately
+
+```python
+# Monitor formatting issues via new API endpoint
+response = requests.get('http://localhost:5001/api/process/format-issues')
+format_data = response.json()
+
+print(f"Candidates with formatting issues: {format_data['format_queue_size']}")
+for issue in format_data['format_issues']:
+    print(f"- {issue['filename']}: {issue['quality_issues']}")
+    print(f"  Quality score: {issue['quality_score']}/10")
+```
 
 ### Intelligent Timeout Management
 
@@ -349,9 +385,73 @@ RESUME_QUICK_TIMEOUT=120
 - **Timeouts**: Balance between speed and success rates
 - **Retry Logic**: Configure based on your LLM provider's reliability
 
-## Custom LLM Integration
+## 🧪 **Testing Formatting Failure Detection**
 
-### Overview
+### **NEW!** Test Script for Custom LLM Adapters
+
+The system now includes a comprehensive test script to validate your custom LLM adapter's JSON formatting performance:
+
+```bash
+# Test your custom adapter's formatting capabilities
+python test_json_formatting.py
+```
+
+#### **What the Test Script Validates:**
+1. **Basic JSON Response**: Tests simple JSON structure compliance
+2. **Full Resume Analysis**: Tests complete candidate processing pipeline
+3. **Malformed Response Recovery**: Tests the 5-strategy parsing system
+4. **Quality Assessment**: Validates response quality scoring
+
+#### **Example Test Output:**
+```
+🧪 Testing JSON Formatting with Custom LLM Adapter
+============================================================
+✅ LLM Client: YourCompanyAdapter
+✅ Using Provider: your_company
+
+🔍 Test 1: Basic JSON Response
+----------------------------------------
+⏱️  Response time: 2.34s
+📝 Raw response (first 200 chars): {"nickname": "Test Candidate"...
+✅ JSON parsing successful!
+📊 Parsed keys: ['nickname', 'summary', 'reservations']
+
+🔍 Test 2: Full Resume Analysis Format
+----------------------------------------
+⏱️  Processing time: 4.12s
+✅ Processing completed successfully!
+📊 Differentiators: 3 found
+📊 Achievements: 4 found
+📊 Work History: 2 positions
+
+🎯 RECOMMENDATIONS FOR YOUR CUSTOM ADAPTER:
+1. Ensure your LLM returns ONLY JSON without markdown blocks
+2. Test with various resume lengths and complexity
+3. Monitor response times - aim for under 30 seconds
+4. Check for consistent field structure in responses
+```
+
+### **Monitoring Formatting Issues in Production**
+
+```bash
+# Check current formatting issues
+curl http://localhost:5001/api/process/format-issues
+
+# Monitor overall processing status
+curl http://localhost:5001/api/process/status
+
+# View detailed retry queue information
+curl http://localhost:5001/api/process/stats
+```
+
+### **Debugging Formatting Failures**
+
+1. **Review Quality Scores**: Check `/api/process/format-issues` for specific issues
+2. **Analyze Response Patterns**: Look for common formatting problems in logs
+3. **Test Model Parameters**: Adjust temperature/top_p for more consistent formatting
+4. **Optimize Prompts**: Use test script feedback to improve prompt engineering
+
+## Custom LLM Integration
 
 This application is designed for enterprise environments where organizations may need to integrate with their own LLM infrastructure instead of external services like OpenAI. The system uses a pluggable adapter pattern that makes it easy to connect to any LLM API.
 
@@ -717,74 +817,3 @@ class AsyncLLMAdapter(BaseLLMClient):
         finally:
             loop.close()
 ```
-
-### Troubleshooting
-
-#### Common Issues:
-
-1. **Import Errors**: Ensure your adapter file is in the `src/` directory and properly imported in `factory.py`
-
-2. **Authentication Failures**: Verify your API keys and endpoints are correctly set in the `.env` file
-
-3. **Network Issues**: Check firewall rules, VPN connections, and internal network policies
-
-4. **Response Format Errors**: Ensure your adapter correctly parses your API's response format
-
-5. **Timeout Issues**: Adjust timeout values for slower internal APIs
-
-#### Debugging:
-
-Add logging to your adapter for better debugging:
-
-```python
-import logging
-
-class DebugAdapter(BaseLLMClient):
-    def __init__(self):
-        logging.basicConfig(level=logging.DEBUG)
-        self.logger = logging.getLogger(__name__)
-        # Your initialization...
-
-    def chat(self, prompt, **kwargs):
-        self.logger.debug(f"Sending prompt: {prompt[:100]}...")
-        try:
-            response = # your API call
-            self.logger.debug(f"Received response: {response[:100]}...")
-            return response
-        except Exception as e:
-            self.logger.error(f"LLM API error: {e}")
-            raise
-```
-
-### Security Considerations
-
-For enterprise deployments:
-
-1. **Environment Variables**: Never hardcode API keys or sensitive URLs
-2. **Certificate Validation**: Use proper SSL/TLS verification for internal APIs
-3. **Rate Limiting**: Implement proper rate limiting to avoid overwhelming your LLM service
-4. **Error Handling**: Avoid leaking sensitive information in error messages
-5. **Audit Logging**: Log API usage for compliance and monitoring
-
-## Contributing
-
-This project is designed to be extended and customized. Key areas for contribution:
-
-- Additional resume parsers (e.g., Word formats, OCR)
-- New LLM provider adapters
-- Enhanced UI components with real-time features
-- Database backend options
-- Advanced export/import functionality
-- Analytics and reporting dashboards
-- Mobile app development
-
-## License
-
-[Add your license here]
-
-## Support
-
-For questions, issues, or customization requests:
-- Open an issue on GitHub
-- Check the documentation in `/docs` (if available)
-- Review example configurations in `/examples` (if available) 
