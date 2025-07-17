@@ -651,14 +651,31 @@ body {
 /* Reservations */
 .reservations-list {
     list-style: none;
-    padding-left: 20px;
+    padding-left: 0;
     margin: 0;
 }
 
 .reservations-list li {
-    margin-bottom: 8px;
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.4;
+    font-size: 0.95rem;
     color: #555;
-    line-height: 1.5;
+}
+
+.reservations-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #667eea;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.reservations-list li:last-child {
+    margin-bottom: 0;
 }
 
 /* Fit Indicators */
