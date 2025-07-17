@@ -440,6 +440,90 @@ def export_candidates():
         print(f"Error exporting candidates: {e}")
         return jsonify({'error': 'Failed to export candidates'}), 500
 
+@app.route('/api/debug/processing-state', methods=['GET'])
+def debug_processing_state():
+    """Debug endpoint to show complete processing state"""
+    try:
+        # Get all resumes from disk
+        all_resumes = resume_parser.get_all_resumes(candidate_service.candidates_folder)
+        
+        # Get processing state from background processor
+        status = background_processor.get_status()
+        failed_candidates = background_processor.get_failed_candidates()
+        
+        # Categorize all resumes
+        processed_ids = set(candidate_service.summaries.keys())
+        
+        # Get decided candidates (saved, passed, starred)
+        saved_ids = {item['id'] for item in candidate_service.decisions['saved']}
+        passed_ids = {item['id'] for item in candidate_service.decisions['passed']}
+        starred_ids = {item['id'] for item in candidate_service.decisions.get('starred', [])}
+        decided_ids = saved_ids | passed_ids | starred_ids
+        
+        # Get retry queue IDs
+        processing_ids = {r['id'] for r in background_processor.retry_queues['processing']}
+        quick_retry_ids = {r['id'] for r in background_processor.retry_queues['quick_retry']}
+        long_retry_ids = {r['id'] for r in background_processor.retry_queues['long_retry']}
+        format_retry_ids = {r['id'] for r in background_processor.retry_queues['format_retry']}
+        failed_ids = {r['id'] for r in background_processor.retry_queues['failed']}
+        
+        # Account for all resumes
+        resume_breakdown = {
+            'total_files': len(all_resumes),
+            'processed_successfully': len(processed_ids),
+            'decided_candidates': len(decided_ids),
+            'currently_processing': len(processing_ids),
+            'quick_retry_queue': len(quick_retry_ids),
+            'long_retry_queue': len(long_retry_ids),
+            'format_retry_queue': len(format_retry_ids),
+            'failed_queue': len(failed_ids),
+            'unaccounted_for': 0
+        }
+        
+        # Find unaccounted resumes
+        all_resume_ids = {r['id'] for r in all_resumes}
+        accounted_ids = (processed_ids | decided_ids | processing_ids | 
+                        quick_retry_ids | long_retry_ids | format_retry_ids | failed_ids)
+        unaccounted_ids = all_resume_ids - accounted_ids
+        resume_breakdown['unaccounted_for'] = len(unaccounted_ids)
+        
+        # Get details for debugging
+        debug_info = {
+            'resume_breakdown': resume_breakdown,
+            'processing_status': status,
+            'failed_candidates_count': len(failed_candidates),
+            'unaccounted_resumes': [
+                {
+                    'id': resume_id,
+                    'filename': next((r['filename'] for r in all_resumes if r['id'] == resume_id), 'Unknown')
+                }
+                for resume_id in unaccounted_ids
+            ],
+            'retry_queue_details': {
+                'quick_retry': [
+                    {'id': r['id'], 'filename': r.get('filename', 'Unknown'), 'retry_count': background_processor.retry_counts.get(r['id'], 0)}
+                    for r in background_processor.retry_queues['quick_retry']
+                ],
+                'long_retry': [
+                    {'id': r['id'], 'filename': r.get('filename', 'Unknown'), 'retry_count': background_processor.retry_counts.get(r['id'], 0)}
+                    for r in background_processor.retry_queues['long_retry']
+                ],
+                'format_retry': [
+                    {'id': r['id'], 'filename': r.get('filename', 'Unknown'), 'retry_count': background_processor.retry_counts.get(r['id'], 0)}
+                    for r in background_processor.retry_queues['format_retry']
+                ],
+                'failed': [
+                    {'id': r['id'], 'filename': r.get('filename', 'Unknown'), 'retry_count': background_processor.retry_counts.get(r['id'], 0), 'error': r.get('error', 'Unknown')}
+                    for r in background_processor.retry_queues['failed']
+                ]
+            }
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
+
 def parse_name_from_filename(filename):
     """Parse first and last name from resume filename"""
     if not filename:

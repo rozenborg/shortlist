@@ -479,7 +479,8 @@ class BackgroundProcessor:
                 **resume,
                 'error': str(error),
                 'error_type': error_type,
-                'retry_count': retry_count
+                'retry_count': retry_count,
+                'failed_at': datetime.now().isoformat()
             })
             logger.error(f"❌ {candidate_id}: Max retries reached, moved to failed queue")
         else:

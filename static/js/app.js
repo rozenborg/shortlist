@@ -1169,7 +1169,7 @@ async function updateProcessingStatus() {
     try {
         // Try to get detailed processing stats first
         const statsResponse = await fetch('/api/process/stats');
-        const stats = await statsResponse.json();
+        const processingStats = await statsResponse.json();
         
         // Get standard status for comparison
         const statusResponse = await fetch('/api/process/status');
@@ -1251,7 +1251,7 @@ async function updateProcessingStatus() {
             const failedResponse = await fetch('/api/process/failed');
             const failedCandidates = await failedResponse.json();
             
-            // Update failed count in stats
+            // Update failed count in global stats object
             stats.failed = failedCandidates.length;
             updateStats();
             
@@ -1654,3 +1654,30 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRightTabCounts();
     }, 1000); // Wait a bit for the main initialization to complete
 });
+
+// Debug function - can be called from browser console
+window.debugProcessingState = async function() {
+    try {
+        const response = await fetch('/api/debug/processing-state');
+        const data = await response.json();
+        
+        console.log('=== PROCESSING STATE DEBUG ===');
+        console.log('Resume Breakdown:', data.resume_breakdown);
+        console.log('Processing Status:', data.processing_status);
+        console.log('Failed Candidates Count:', data.failed_candidates_count);
+        
+        if (data.unaccounted_resumes.length > 0) {
+            console.warn('UNACCOUNTED RESUMES:', data.unaccounted_resumes);
+        }
+        
+        console.log('Retry Queue Details:', data.retry_queue_details);
+        
+        // Also log current UI stats for comparison
+        console.log('Current UI Stats:', stats);
+        
+        return data;
+    } catch (error) {
+        console.error('Debug function failed:', error);
+        return null;
+    }
+};
