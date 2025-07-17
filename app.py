@@ -143,6 +143,84 @@ def get_format_issues():
         'format_issues': format_issues
     })
 
+@app.route('/api/export-failed', methods=['POST'])
+def export_failed_candidates():
+    """Export failed candidates to Excel file"""
+    try:
+        # Get failed candidates
+        failed_candidates = background_processor.get_failed_candidates()
+        
+        if not failed_candidates:
+            return jsonify({'error': 'No failed candidates to export'}), 400
+        
+        # Create workbook and worksheet
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Failed to Process"
+        
+        # Define headers
+        headers = [
+            'Resume Filename', 'Candidate Name', 'Error Type', 
+            'Error Message', 'Retry Count', 'Failed At'
+        ]
+        
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Write failed candidate data
+        for row, candidate in enumerate(failed_candidates, 2):
+            # Get retry count
+            retry_count = background_processor.retry_counts.get(candidate['id'], 0)
+            
+            # Get timestamp if available
+            failed_at = candidate.get('failed_at', 'Unknown')
+            
+            # Write row data
+            row_data = [
+                candidate.get('filename', 'Unknown'),
+                candidate.get('name', 'Unknown'),
+                candidate.get('error_type', 'Unknown'),
+                candidate.get('error', 'Unknown error'),
+                retry_count,
+                failed_at
+            ]
+            
+            for col, value in enumerate(row_data, 1):
+                ws.cell(row=row, column=col, value=value)
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 60)  # Cap at 60 characters for error messages
+            ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Save to BytesIO
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name='failed_candidates.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Error exporting failed candidates: {e}")
+        return jsonify({'error': 'Failed to export failed candidates'}), 500
+
 @app.route('/api/process/retry/<candidate_id>', methods=['POST'])
 def retry_failed_candidate(candidate_id):
     """Manually retry a failed candidate"""

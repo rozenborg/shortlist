@@ -6,7 +6,8 @@ let stats = {
     saved: 0,
     starred: 0,
     passed: 0,
-    leftToReview: 0
+    leftToReview: 0,
+    failed: 0
 };
 let passedCandidates = [];
 let savedCandidates = [];
@@ -711,6 +712,15 @@ function updateStats() {
     document.getElementById('starred-count').textContent = stats.starred;
     document.getElementById('passed-count').textContent = stats.passed;
     document.getElementById('left-to-review-count').textContent = stats.leftToReview;
+    document.getElementById('failed-count').textContent = stats.failed;
+    
+    // Show/hide failed export link based on failed count
+    const failedExportLink = document.getElementById('failed-export-link');
+    if (stats.failed > 0) {
+        failedExportLink.style.display = 'block';
+    } else {
+        failedExportLink.style.display = 'none';
+    }
 }
 
 // Display saved candidates
@@ -1120,7 +1130,8 @@ async function restartSession() {
             saved: 0,
             starred: 0,
             passed: 0,
-            leftToReview: 0
+            leftToReview: 0,
+            failed: 0
         };
         updateStats();
         
@@ -1235,10 +1246,14 @@ async function updateProcessingStatus() {
             showNotification('All candidates have been analyzed!', 'success');
         }
         
-        // Show failed candidates info
+        // Show failed candidates info and update stats
         try {
             const failedResponse = await fetch('/api/process/failed');
             const failedCandidates = await failedResponse.json();
+            
+            // Update failed count in stats
+            stats.failed = failedCandidates.length;
+            updateStats();
             
             if (failedCandidates.length > 0) {
                 const failedElement = document.getElementById('failed-candidates-info');
@@ -1365,6 +1380,50 @@ async function exportCandidates() {
         exportBtn.innerHTML = '<span class="btn-icon">📊</span> Export to Excel';
     }
 } 
+
+// Export failed candidates to Excel
+async function exportFailedCandidates() {
+    try {
+        // Check if there are any failed candidates first
+        const response = await fetch('/api/process/failed');
+        const failedCandidates = await response.json();
+        
+        if (failedCandidates.length === 0) {
+            alert('No failed candidates to export.');
+            return;
+        }
+        
+        // Call export API
+        const exportResponse = await fetch('/api/export-failed', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (exportResponse.ok) {
+            // Get the blob and download it
+            const blob = await exportResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'failed_candidates.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification(`Downloaded ${failedCandidates.length} failed candidates to Excel file`, 'success');
+        } else {
+            const error = await exportResponse.json();
+            alert(error.error || 'Failed to export failed candidates');
+        }
+        
+    } catch (error) {
+        console.error('Error exporting failed candidates:', error);
+        alert('Error exporting failed candidates. Please try again.');
+    }
+}
 
 // Show notification toast
 function showNotification(message, type = 'info') {

@@ -549,15 +549,19 @@ class BatchProcessor:
         
         # Extract from filename if available (via resume_data structure)
         if 'filename' in resume_data:
-            # Use the ResumeParser's name extraction logic
+            # Use the same flexible name extraction logic as ResumeParser
             filename = resume_data['filename']
-            match = re.match(r'^(.+?)\s+\w+\s+RESUME\.(pdf|docx|txt)$', filename, re.IGNORECASE)
-            if match:
-                full_name = match.group(1).strip()
-                # Split into parts and add variations
-                name_parts = full_name.split()
-                names.extend(name_parts)
-                names.append(full_name)  # Full name
+            name_without_ext = re.sub(r'\.[^.]+$', '', filename)  # Remove extension
+            
+            # Split by spaces, underscores, or other common separators
+            parts = re.split(r'[_\s]+', name_without_ext)
+            parts = [part.strip() for part in parts if part.strip()]
+            
+            if len(parts) >= 2:
+                # Take first two parts as first and last name
+                full_name = f"{parts[0]} {parts[1]}"
+                names.extend(parts[:2])  # Add individual name parts
+                names.append(full_name)  # Add full name
         
         # Extract from resume_data if 'name' field exists
         if 'name' in resume_data and resume_data['name'] != 'Unknown Candidate':

@@ -1514,3 +1514,24 @@ body {
         min-width: 80px;
     }
 } 
+
+/* Failed Stats Export Link */
+.failed-export-link {
+    margin-top: 5px;
+    text-align: center;
+}
+
+.subtle-link {
+    color: #999;
+    font-size: 0.8em;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.subtle-link:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    text-decoration: underline;
+}
