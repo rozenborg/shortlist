@@ -1425,6 +1425,73 @@ async function exportFailedCandidates() {
     }
 }
 
+// Migrate resumes to organized folders based on decisions
+async function migrateResumes() {
+    const migrateBtn = document.querySelector('.migrate-btn');
+    
+    try {
+        // Check if there are any decisions made first
+        const savedResponse = await fetch('/api/saved');
+        const passedResponse = await fetch('/api/passed');
+        const savedCandidates = await savedResponse.json();
+        const passedCandidates = await passedResponse.json();
+        
+        if (savedCandidates.length === 0 && passedCandidates.length === 0) {
+            alert('No candidates have been reviewed yet. Please review some candidates first!');
+            return;
+        }
+        
+        // Show confirmation dialog
+        const totalToMigrate = savedCandidates.length + passedCandidates.length;
+        const confirmMessage = `This will move ${savedCandidates.length} saved candidates to candidates/reviewed/saved/ and ${passedCandidates.length} passed candidates to candidates/reviewed/passed/. Continue?`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        migrateBtn.disabled = true;
+        migrateBtn.innerHTML = '<span class="btn-icon">⏳</span> Migrating...';
+        
+        // Call migrate API
+        const migrateResponse = await fetch('/api/migrate-resumes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (migrateResponse.ok) {
+            const result = await migrateResponse.json();
+            
+            let message = `Successfully migrated ${result.migrated_count} resumes:`;
+            if (result.saved_migrated > 0) {
+                message += `\n- ${result.saved_migrated} saved candidates to candidates/reviewed/saved/`;
+            }
+            if (result.passed_migrated > 0) {
+                message += `\n- ${result.passed_migrated} passed candidates to candidates/reviewed/passed/`;
+            }
+            if (result.errors && result.errors.length > 0) {
+                message += `\n\nErrors: ${result.errors.join(', ')}`;
+            }
+            
+            alert(message);
+            showNotification(`Migrated ${result.migrated_count} resume files successfully`, 'success');
+        } else {
+            const error = await migrateResponse.json();
+            alert(error.error || 'Failed to migrate resumes');
+        }
+        
+    } catch (error) {
+        console.error('Error migrating resumes:', error);
+        alert('Error migrating resumes. Please try again.');
+    } finally {
+        // Reset button state
+        migrateBtn.disabled = false;
+        migrateBtn.innerHTML = '<span class="btn-icon">📁</span> Migrate Resumes';
+    }
+}
+
 // Show notification toast
 function showNotification(message, type = 'info') {
     // Create notification element

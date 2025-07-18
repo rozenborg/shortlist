@@ -1,6 +1,6 @@
 # 📊 Data Folder
 
-This folder stores your application data and settings. Files here are automatically generated and managed by the Swipe application.
+This folder stores your application data and settings. Files here are automatically generated and managed by the Shortlist application.
 
 ## 📁 **Auto-Generated Files:**
 

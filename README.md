@@ -1,7 +1,7 @@
-# Swipe - AI-Powered Resume Screening Application
+# Shortlist - AI-Powered Resume Screening Application
 
 ## Overview
-Swipe is a modern, AI-powered resume screening and review application that makes hiring faster and more efficient. With an intuitive swipe interface (like Tinder, but for resumes), recruiters and hiring managers can quickly review candidates with AI-generated insights and make informed decisions.
+Shortlist is a modern, AI-powered resume screening and review application that makes hiring faster and more efficient. With an intuitive swipe interface (like Tinder, but for resumes), recruiters and hiring managers can quickly review candidates with AI-generated insights and make informed decisions.
 
 **Perfect for:**
 - Startups looking to streamline their hiring process
@@ -65,8 +65,8 @@ Swipe is a modern, AI-powered resume screening and review application that makes
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/rozenborg/swipe.git
-   cd swipe
+   git clone https://github.com/rozenborg/shortlist.git
+   cd shortlist
    ```
 
 2. **Install dependencies:**
@@ -813,11 +813,11 @@ class InternalAPIAdapter(BaseLLMClient):
         self.verify_ssl = os.getenv("INTERNAL_LLM_VERIFY_SSL", "true").lower() == "true"
 
     def chat(self, prompt, **kwargs):
-        headers = {
-            "Authorization": f"Bearer {self.auth_token}",
-            "Content-Type": "application/json",
-            "X-Request-Source": "swipe-app"
-        }
+                    headers = {
+                "Authorization": f"Bearer {self.auth_token}",
+                "Content-Type": "application/json",
+                "X-Request-Source": "shortlist-app"
+            }
         
         session = requests.Session()
         if self.cert_path:
@@ -828,7 +828,7 @@ class InternalAPIAdapter(BaseLLMClient):
             headers=headers,
             json={
                 "message": prompt,
-                "user_id": "swipe-system",
+                "user_id": "shortlist-system",
                 "parameters": kwargs
             },
             verify=self.verify_ssl,

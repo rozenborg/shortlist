@@ -298,7 +298,7 @@ body {
 }
 
 /* Panels */
-.left-panel, .right-panel {
+.left-panel {
     width: 280px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -306,6 +306,20 @@ body {
     padding: 25px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08), 0 3px 10px rgba(0, 0, 0, 0.05);
     overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.right-panel {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08), 0 3px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
 }
@@ -795,6 +809,8 @@ body {
 .saved-candidates {
     min-height: 100px;
     padding: 10px 0;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .empty-message {
@@ -912,9 +928,10 @@ body {
 
 /* Export Section */
 .export-section {
-    margin-top: 20px;
-    padding-top: 20px;
+    margin-top: 15px;
+    padding-top: 15px;
     border-top: 1px solid #e0e0e0;
+    flex-shrink: 0; /* Don't allow export section to shrink */
 }
 
 .export-btn {
@@ -941,6 +958,37 @@ body {
 }
 
 .export-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.migrate-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.migrate-btn:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3);
+}
+
+.migrate-btn:disabled {
     background: #6c757d;
     cursor: not-allowed;
     transform: none;
@@ -1304,6 +1352,15 @@ body {
     display: flex;
     border-bottom: 1px solid #e9ecef;
     margin: -25px -25px 15px -25px; /* negative margins to make tabs flush with container */
+    flex-shrink: 0; /* Don't allow tabs to shrink */
+}
+
+/* Right Panel Content Area */
+.right-panel-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .right-tab {
@@ -1351,10 +1408,13 @@ body {
 
 .right-tab-content {
     display: none;
+    flex: 1;
+    overflow: hidden;
 }
 
 .right-tab-content.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Candidate Actions for Both Saved and Passed */
@@ -1475,8 +1535,8 @@ body {
 .passed-candidates {
     min-height: 100px;
     padding: 10px 0;
-    max-height: 500px;
     overflow-y: auto;
+    flex: 1;
 }
 
 

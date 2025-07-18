@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Swipe - Application Review</title>
+    <title>Shortlist - Application Review</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -12,7 +12,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <h1 class="app-title">Swipe</h1>
+                <h1 class="app-title">Shortlist</h1>
             </div>
             <div class="header-center">
                 <p class="app-subtitle">Applicant Review Accelerator</p>
@@ -151,23 +151,30 @@
                     </button>
                 </div>
                 
-                <!-- Saved Candidates Content -->
-                <div id="saved-content" class="right-tab-content active">
-                    <div id="saved-candidates" class="saved-candidates">
-                        <!-- Saved candidates will be displayed here -->
+                <div class="right-panel-content">
+                    <!-- Saved Candidates Content -->
+                    <div id="saved-content" class="right-tab-content active">
+                        <div id="saved-candidates" class="saved-candidates">
+                            <!-- Saved candidates will be displayed here -->
+                        </div>
                     </div>
-                    <div class="export-section">
-                        <button class="export-btn" onclick="exportCandidates()">
-                            <span class="btn-icon">📊</span> Export Shortlist
-                        </button>
+                    
+                    <!-- Passed Candidates Content -->
+                    <div id="passed-content" class="right-tab-content" style="display:none;">
+                        <div id="passed-candidates" class="passed-candidates">
+                            <!-- Passed candidates will be displayed here -->
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Passed Candidates Content -->
-                <div id="passed-content" class="right-tab-content" style="display:none;">
-                    <div id="passed-candidates" class="passed-candidates">
-                        <!-- Passed candidates will be displayed here -->
-                    </div>
+                <!-- Fixed Export Section -->
+                <div class="export-section">
+                    <button class="export-btn" onclick="exportCandidates()">
+                        <span class="btn-icon">📊</span> Export Shortlist
+                    </button>
+                    <button class="migrate-btn" onclick="migrateResumes()">
+                        <span class="btn-icon">📁</span> Migrate Resumes
+                    </button>
                 </div>
             </div>
         </div>

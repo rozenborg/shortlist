@@ -441,6 +441,85 @@ def export_candidates():
         print(f"Error exporting candidates: {e}")
         return jsonify({'error': 'Failed to export candidates'}), 500
 
+@app.route('/api/migrate-resumes', methods=['POST'])
+def migrate_resumes():
+    """Migrate resumes to organized folders based on review decisions"""
+    try:
+        import shutil
+        
+        # Get saved and passed candidates
+        saved_candidates = candidate_service.get_saved_candidates()
+        passed_candidates = candidate_service.get_passed_candidates()
+        
+        if not saved_candidates and not passed_candidates:
+            return jsonify({'error': 'No candidates have been reviewed yet'}), 400
+        
+        # Create destination directories
+        saved_dir = os.path.join('candidates', 'reviewed', 'saved')
+        passed_dir = os.path.join('candidates', 'reviewed', 'passed')
+        os.makedirs(saved_dir, exist_ok=True)
+        os.makedirs(passed_dir, exist_ok=True)
+        
+        migrated_count = 0
+        saved_migrated = 0
+        passed_migrated = 0
+        errors = []
+        
+        # Migrate saved candidates
+        for candidate in saved_candidates:
+            try:
+                filename = candidate.get('filename')
+                if filename:
+                    source_path = os.path.join('candidates', filename)
+                    dest_path = os.path.join(saved_dir, filename)
+                    
+                    if os.path.exists(source_path):
+                        shutil.move(source_path, dest_path)
+                        saved_migrated += 1
+                        migrated_count += 1
+                        print(f"Moved saved candidate: {filename}")
+                    else:
+                        errors.append(f"Source file not found: {filename}")
+            except Exception as e:
+                errors.append(f"Error moving {filename}: {str(e)}")
+        
+        # Migrate passed candidates
+        for candidate in passed_candidates:
+            try:
+                filename = candidate.get('filename')
+                if filename:
+                    source_path = os.path.join('candidates', filename)
+                    dest_path = os.path.join(passed_dir, filename)
+                    
+                    if os.path.exists(source_path):
+                        shutil.move(source_path, dest_path)
+                        passed_migrated += 1
+                        migrated_count += 1
+                        print(f"Moved passed candidate: {filename}")
+                    else:
+                        errors.append(f"Source file not found: {filename}")
+            except Exception as e:
+                errors.append(f"Error moving {filename}: {str(e)}")
+        
+        result = {
+            'success': True,
+            'migrated_count': migrated_count,
+            'saved_migrated': saved_migrated,
+            'passed_migrated': passed_migrated,
+            'total_reviewed': len(saved_candidates) + len(passed_candidates),
+            'errors': errors
+        }
+        
+        print(f"Migration completed: {migrated_count} files moved ({saved_migrated} saved, {passed_migrated} passed)")
+        if errors:
+            print(f"Migration errors: {errors}")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error during migration: {e}")
+        return jsonify({'error': f'Failed to migrate resumes: {str(e)}'}), 500
+
 @app.route('/api/debug/processing-state', methods=['GET'])
 def debug_processing_state():
     """Debug endpoint to show complete processing state"""

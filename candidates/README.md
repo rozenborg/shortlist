@@ -1,6 +1,6 @@
 # 📁 Candidates Folder
 
-This is where you place resume files for the Swipe application to analyze.
+This is where you place resume files for the Shortlist application to analyze.
 
 ## 📋 **How to Add Resumes:**
 
